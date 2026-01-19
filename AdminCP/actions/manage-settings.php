@@ -36,12 +36,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 } else { $status = 'Error: Invalid favicon file type or size.'; }
             }
             $settings['website_title'] = $_POST['website_title'];
+            
+            // Server 1
             $settings['mid_rate_server']['name'] = $_POST['mid_name'];
             $settings['mid_rate_server']['address'] = $_POST['mid_address'];
             $settings['mid_rate_server']['port'] = (int)$_POST['mid_port'];
+            $settings['mid_rate_server']['visible'] = (bool)$_POST['mid_visible']; // Save visibility
+
+            // Server 2
             $settings['hard_rate_server']['name'] = $_POST['hard_name'];
             $settings['hard_rate_server']['address'] = $_POST['hard_address'];
             $settings['hard_rate_server']['port'] = (int)$_POST['hard_port'];
+            $settings['hard_rate_server']['visible'] = (bool)$_POST['hard_visible']; // Save visibility
+            
             $page = 'settings';
             break;
         case 'save_links':

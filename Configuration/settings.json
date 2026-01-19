@@ -1,8 +1,8 @@
 {
-    "website_title": "Arik MU Online",
-    "favicon_url": "uploads\/favicon-68e3b0741f892.png",
+    "website_title": "Zion Elysium",
+    "favicon_url": "uploads\/favicon-696dcb40505a2.png",
     "security": {
-        "session_timeout_minutes": 5
+        "session_timeout_minutes": 30
     },
     "database": {
         "mid_rate": {
@@ -18,21 +18,23 @@
     },
     "download_link_1": {
         "label": "Mediafire",
-        "url": "https:\/\/www.mediafire.com\/file\/oq31x9jfct5hys6\/KiraMU.rar\/file"
+        "url": "https:\/\/www.mediafire.com\/file\/5tgucrp4d26dplq\/ZIONMU.rar\/file"
     },
     "download_link_2": {
         "label": "Mega",
-        "url": "https:\/\/mega.nz\/file\/Z8c1DRZa#hWrmkbiZZGZW31x1_sQZSwSJLOW-18vmeEH7NM3bgvs"
+        "url": "https:\/\/mega.nz\/file\/N8YH1JyZ#9UhKfLCYRjg1hq7jqzovcUwbfuGhR6RUxO3GvoYvQsU"
     },
-    "wallpaper_url": "uploads\/wallpaper-68e3afd1997d0.png",
+    "wallpaper_url": "uploads\/wallpaper-696df80e1e8bf.png",
     "mid_rate_server": {
-        "name": "Mid Rate",
+        "name": "Zion",
         "address": "127.0.0.1",
-        "port": 55902
+        "port": 55901,
+        "visible": true
     },
     "hard_rate_server": {
         "name": "Hard Rate",
         "address": "127.0.0.1",
-        "port": 55920
+        "port": 55920,
+        "visible": false
     }
 }

@@ -66,9 +66,9 @@ if (strlen($password) < 4 || strlen($password) > 20) {
 // Get database configuration based on server selection
 if ($server === 'mid') {
     $db_config = $settings['database']['mid_rate'];
-    $db_name = "MuOnlineMid";
+    $db_name = "MuOnline";
 } else {
-    $db_config = $settings['database']['hard_rate'];
+    $db_config = $settings['database']['hard_rate'];s
     $db_name = "MuOnlineTest";
 }
 

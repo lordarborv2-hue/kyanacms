@@ -5,10 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Loading...</title>
     <link id="favicon" rel="icon" href="uploads/default-favicon.ico">
-    <link rel="stylesheet" href="Css/style.css?v=14">
+    <link rel="stylesheet" href="Css/style.css?v=15">
 </head>
 <body>
-    <!-- Registration Modal -->
     <div id="registrationModal" class="modal">
         <div class="modal-content">
             <div class="modal-header">
@@ -21,8 +20,8 @@
                     <label for="reg-server">Select Server:</label>
                     <select id="reg-server" name="server" required>
                         <option value="">-- Choose Server --</option>
-                        <option value="mid">Zion</option>
-                        <option value="hard">Elysium</option>
+                        <option value="mid">Server 1</option>
+                        <option value="hard">Server 2</option>
                     </select>
                 </div>
                 <div class="form-group">
@@ -52,9 +51,9 @@
         </div>
 
         <div class="container">
-            <div class="server-column">
+            <div class="server-column" id="col-server-1">
                 <div class="server-header">
-                    <h2><span id="mid-rate-name">Zion</span> <span id="mid-rate-status" class="server-status"></span></h2>
+                    <h2><span id="mid-rate-name">Server 1</span> <span id="mid-rate-status" class="server-status"></span></h2>
                     <p class="online-text">Online: <span id="mid-rate-count" class="online-count">...</span></p>
                     <div class="cs-owner-container">
                         <p>Castle Owner: <span id="mid-rate-owner-name">--</span></p>
@@ -64,11 +63,11 @@
                 <div id="mid-rate-news-container" class="news-container"></div>
             </div>
 
-            <div class="separator"></div>
+            <div class="separator" id="server-separator"></div>
 
-            <div class="server-column">
+            <div class="server-column" id="col-server-2">
                 <div class="server-header">
-                    <h2><span id="hard-rate-name">Elysium</span> <span id="hard-rate-status" class="server-status"></span></h2>
+                    <h2><span id="hard-rate-name">Server 2</span> <span id="hard-rate-status" class="server-status"></span></h2>
                     <p class="online-text">Online: <span id="hard-rate-count" class="online-count">...</span></p>
                     <div class="cs-owner-container">
                         <p>Castle Owner: <span id="hard-rate-owner-name">--</span></p>
@@ -80,7 +79,7 @@
         </div>
     </div>
     
-    <script src="Scripts/main.js?v=9"></script>
-    <script src="Scripts/registration.js?v=1"></script>
+    <script src="Scripts/main.js?v=12"></script>
+    <script src="Scripts/registration.js?v=2"></script>
 </body>
 </html>
