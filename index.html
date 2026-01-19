@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+    <link id="favicon" rel="icon" href="uploads/default-favicon.ico">
+    <link rel="stylesheet" href="Css/style.css?v=14">
+</head>
+<body>
+    <!-- Registration Modal -->
+    <div id="registrationModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Register Account</h2>
+                <button class="close-btn" onclick="closeRegistrationModal()">&times;</button>
+            </div>
+            <div id="registrationMessage"></div>
+            <form id="registrationForm" onsubmit="handleRegistration(event)">
+                <div class="form-group">
+                    <label for="reg-server">Select Server:</label>
+                    <select id="reg-server" name="server" required>
+                        <option value="">-- Choose Server --</option>
+                        <option value="mid">Zion</option>
+                        <option value="hard">Elysium</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label for="reg-username">Username:</label>
+                    <input type="text" id="reg-username" name="username" required minlength="4" maxlength="10" pattern="[a-zA-Z0-9]+" title="4-10 characters, letters and numbers only">
+                </div>
+                <div class="form-group">
+                    <label for="reg-password">Password:</label>
+                    <input type="password" id="reg-password" name="password" required minlength="4" maxlength="20">
+                </div>
+                <div class="form-group">
+                    <label for="reg-confirm-password">Confirm Password:</label>
+                    <input type="password" id="reg-confirm-password" name="confirm_password" required minlength="4" maxlength="20">
+                </div>
+                <button type="submit" class="submit-btn" id="registerSubmitBtn">Register</button>
+            </form>
+        </div>
+    </div>
+
+    <div class="page-wrapper">
+        <div class="dl-link-container">
+            <div class="dl-link-row">
+                <a href="#" id="dl-link-1" class="dl-link">Loading...</a>
+                <a href="#" id="dl-link-2" class="dl-link">Loading...</a>
+            </div>
+            <button class="register-btn" onclick="openRegistrationModal()">📝 Register Account</button>
+        </div>
+
+        <div class="container">
+            <div class="server-column">
+                <div class="server-header">
+                    <h2><span id="mid-rate-name">Zion</span> <span id="mid-rate-status" class="server-status"></span></h2>
+                    <p class="online-text">Online: <span id="mid-rate-count" class="online-count">...</span></p>
+                    <div class="cs-owner-container">
+                        <p>Castle Owner: <span id="mid-rate-owner-name">--</span></p>
+                        <img id="mid-rate-emblem" src="" alt="Castle Emblem" class="cs-emblem">
+                    </div>
+                </div>
+                <div id="mid-rate-news-container" class="news-container"></div>
+            </div>
+
+            <div class="separator"></div>
+
+            <div class="server-column">
+                <div class="server-header">
+                    <h2><span id="hard-rate-name">Elysium</span> <span id="hard-rate-status" class="server-status"></span></h2>
+                    <p class="online-text">Online: <span id="hard-rate-count" class="online-count">...</span></p>
+                    <div class="cs-owner-container">
+                        <p>Castle Owner: <span id="hard-rate-owner-name">--</span></p>
+                        <img id="hard-rate-emblem" src="" alt="Castle Emblem" class="cs-emblem">
+                    </div>
+                </div>
+                <div id="hard-rate-news-container" class="news-container"></div>
+            </div>
+        </div>
+    </div>
+    
+    <script src="Scripts/main.js?v=9"></script>
+    <script src="Scripts/registration.js?v=1"></script>
+</body>
+</html>

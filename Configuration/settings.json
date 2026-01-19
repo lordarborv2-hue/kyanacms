@@ -1,0 +1,38 @@
+{
+    "website_title": "Arik MU Online",
+    "favicon_url": "uploads\/favicon-68e3b0741f892.png",
+    "security": {
+        "session_timeout_minutes": 5
+    },
+    "database": {
+        "mid_rate": {
+            "host": "127.0.0.1",
+            "user": "sa",
+            "pass_encrypted": "LzdZOERiVnFrRmtOTHJxMVhwejBvZlp0TnZHM2FzWjdxT2R2QkU3S1pUcz06Okjk5pf6Hl0vv83ClTENjEI="
+        },
+        "hard_rate": {
+            "host": "127.0.0.1",
+            "user": "sa",
+            "pass_encrypted": "ZlJaSTBNTGZxdGQ0eDA1amxFYklYbHhycmZOMG5Uams0V3dHMGpha2VNQT06OjwAM4qiMgkQJCCV6O1SrSU="
+        }
+    },
+    "download_link_1": {
+        "label": "Mediafire",
+        "url": "https:\/\/www.mediafire.com\/file\/oq31x9jfct5hys6\/KiraMU.rar\/file"
+    },
+    "download_link_2": {
+        "label": "Mega",
+        "url": "https:\/\/mega.nz\/file\/Z8c1DRZa#hWrmkbiZZGZW31x1_sQZSwSJLOW-18vmeEH7NM3bgvs"
+    },
+    "wallpaper_url": "uploads\/wallpaper-68e3afd1997d0.png",
+    "mid_rate_server": {
+        "name": "Mid Rate",
+        "address": "127.0.0.1",
+        "port": 55902
+    },
+    "hard_rate_server": {
+        "name": "Hard Rate",
+        "address": "127.0.0.1",
+        "port": 55920
+    }
+}
