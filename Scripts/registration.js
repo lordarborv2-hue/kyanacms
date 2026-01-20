@@ -1,4 +1,4 @@
-// ================================================
+﻿// ================================================
 // REGISTRATION SYSTEM
 // ================================================
 
@@ -8,18 +8,22 @@ console.log('✅ Registration system loaded!');
 function openRegistrationModal() {
     console.log('📝 Opening registration modal...');
     const modal = document.getElementById('registrationModal');
-    modal.classList.add('active');
-    
-    // Clear form
-    document.getElementById('registrationForm').reset();
-    document.getElementById('registrationMessage').innerHTML = '';
+    if (modal) {
+        modal.classList.add('active');
+        // Clear form and messages
+        const form = document.getElementById('registrationForm');
+        if (form) form.reset();
+        const msg = document.getElementById('registrationMessage');
+        if (msg) msg.innerHTML = '';
+    } else {
+        console.error('❌ Modal element not found!');
+    }
 }
 
 // Close registration modal
 function closeRegistrationModal() {
-    console.log('❌ Closing registration modal...');
     const modal = document.getElementById('registrationModal');
-    modal.classList.remove('active');
+    if (modal) modal.classList.remove('active');
 }
 
 // Close modal when clicking outside
@@ -35,88 +39,78 @@ async function handleRegistration(event) {
     event.preventDefault();
     console.log('📤 Submitting registration...');
     
-    const form = document.getElementById('registrationForm');
     const messageDiv = document.getElementById('registrationMessage');
     const submitBtn = document.getElementById('registerSubmitBtn');
     
-    // Get form values
-    const server = document.getElementById('reg-server').value;
+    // 1. Get Values
+    const serverSelect = document.getElementById('reg-server');
+    const serverValue = serverSelect.value; 
+    // DYNAMIC NAME FIX: Get the text of the selected option (e.g., "Zion")
+    const serverName = serverSelect.options[serverSelect.selectedIndex].text;
+    
     const username = document.getElementById('reg-username').value;
     const password = document.getElementById('reg-password').value;
     const confirmPassword = document.getElementById('reg-confirm-password').value;
     
-    // Validate passwords match
+    // 2. Client-side Validation
     if (password !== confirmPassword) {
         messageDiv.innerHTML = '<div class="message error">❌ Passwords do not match!</div>';
-        console.error('❌ Password mismatch');
         return;
     }
     
-    // Validate username format
-    const usernameRegex = /^[a-zA-Z0-9]{4,10}$/;
-    if (!usernameRegex.test(username)) {
-        messageDiv.innerHTML = '<div class="message error">❌ Username must be 4-10 characters (letters and numbers only)</div>';
-        console.error('❌ Invalid username format');
-        return;
-    }
-    
-    // Disable submit button
+    // 3. Disable button
     submitBtn.disabled = true;
     submitBtn.textContent = 'Registering...';
     
-    // Prepare form data
+    // 4. Prepare Data
     const formData = new FormData();
-    formData.append('server', server);
+    formData.append('server', serverValue);
     formData.append('username', username);
     formData.append('password', password);
     
     try {
-        // Send registration request
         const response = await fetch('Configuration/register.php', {
             method: 'POST',
             body: formData
         });
         
-        const result = await response.json();
-        console.log('📥 Registration response:', result);
+        const text = await response.text();
         
-        if (result.success) {
-            // Success!
+        let result;
+        try {
+            result = JSON.parse(text);
+        } catch (e) {
+            console.error('Server returned invalid JSON:', text);
             messageDiv.innerHTML = `
-                <div class="message success">
-                    ✅ Registration Successful!<br>
-                    <strong>Username:</strong> ${username}<br>
-                    <strong>Server:</strong> ${server === 'mid' ? 'Mid Rate' : 'Hard Rate'}<br><br>
-                    <strong>Next Steps:</strong><br>
-                    1. Download the game using the buttons above<br>
-                    2. Install and launch the game<br>
-                    3. Login with your credentials<br><br>
-                    Have fun playing!
-                </div>
-            `;
-            console.log('✅ Registration successful!');
-            
-            // Reset form
-            form.reset();
-            
-        } else {
-            // Error
-            messageDiv.innerHTML = `<div class="message error">❌ ${result.message || 'Registration failed. Please try again.'}</div>`;
-            console.error('❌ Registration failed:', result.message);
-            
-            // Re-enable submit button
+                <div class="message error" style="text-align:left; font-size:12px; overflow:auto; max-height:150px;">
+                    <strong>❌ SYSTEM ERROR:</strong><br>
+                    ${text}
+                </div>`;
             submitBtn.disabled = false;
             submitBtn.textContent = 'Register';
+            return;
+        }
+
+        // 5. Handle Success/Failure
+        if (result.success) {
+            messageDiv.innerHTML = `
+                <div class="message success">
+                    ✅ <strong>Success!</strong><br>
+                    Account: <strong>${result.username}</strong><br>
+                    Server: <strong>${serverName}</strong><br><br>
+                    You can now login to the game!
+                </div>
+            `;
+            document.getElementById('registrationForm').reset();
+        } else {
+            messageDiv.innerHTML = `<div class="message error">❌ ${result.message}</div>`;
         }
         
     } catch (error) {
-        console.error('❌ Registration error:', error);
-        messageDiv.innerHTML = '<div class="message error">❌ An error occurred. Please try again later.</div>';
-        
-        // Re-enable submit button
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Register';
+        console.error('❌ Network error:', error);
+        messageDiv.innerHTML = '<div class="message error">❌ Network Error. Check console (F12) for details.</div>';
     }
+    
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Register';
 }
-
-console.log('📄 Registration script loaded completely');

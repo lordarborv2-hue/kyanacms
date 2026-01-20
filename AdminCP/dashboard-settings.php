@@ -34,7 +34,7 @@ $hard_visible = $settings['hard_rate_server']['visible'] ?? true;
             <label for="mid_vis_off" style="font-weight:normal;">Hide</label>
         </div>
 
-        <label for="mid_name">Server Name:</label> 
+        <label for="mid_name">Display Name:</label> 
         <input type="text" id="mid_name" name="mid_name" value="<?php echo htmlspecialchars($settings['mid_rate_server']['name']); ?>" required>
         
         <label for="mid_address">Address (IP or Domain):</label>
@@ -56,7 +56,7 @@ $hard_visible = $settings['hard_rate_server']['visible'] ?? true;
             <label for="hard_vis_off" style="font-weight:normal;">Hide</label>
         </div>
 
-        <label for="hard_name">Server Name:</label> 
+        <label for="hard_name">Display Name:</label> 
         <input type="text" id="hard_name" name="hard_name" value="<?php echo htmlspecialchars($settings['hard_rate_server']['name']); ?>" required>
         
         <label for="hard_address">Address (IP or Domain):</label>

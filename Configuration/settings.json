@@ -7,11 +7,13 @@
     "database": {
         "mid_rate": {
             "host": "127.0.0.1",
+            "name": "MuOnline",
             "user": "sa",
-            "pass_encrypted": "LzdZOERiVnFrRmtOTHJxMVhwejBvZlp0TnZHM2FzWjdxT2R2QkU3S1pUcz06Okjk5pf6Hl0vv83ClTENjEI="
+            "pass_encrypted": "aWlwSjlWTGw5d3lsSC82cTNTRG5BbjJBRlF4cEFLSm8reTBJS0VKMVFvOD06OiD1TyfpcomF9OV9XoOagQA="
         },
         "hard_rate": {
             "host": "127.0.0.1",
+            "name": "MuOnlineEly",
             "user": "sa",
             "pass_encrypted": "ZlJaSTBNTGZxdGQ0eDA1amxFYklYbHhycmZOMG5Uams0V3dHMGpha2VNQT06OjwAM4qiMgkQJCCV6O1SrSU="
         }

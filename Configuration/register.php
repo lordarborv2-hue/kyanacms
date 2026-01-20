@@ -1,19 +1,14 @@
 <?php
-// ================================================
-// REGISTRATION BACKEND
-// ================================================
-
+// Prevent HTML errors from breaking JSON
 header('Content-Type: application/json');
-
-// Enable error reporting for debugging (remove in production)
 error_reporting(E_ALL);
 ini_set('display_errors', 0);
 
-// Load configuration
+// Load Configuration
 require_once '../config.php';
-
-// Load settings
 $settings_file = 'settings.json';
+
+// Validate Config File
 if (!file_exists($settings_file)) {
     echo json_encode(['success' => false, 'message' => 'Configuration file not found.']);
     exit;
@@ -21,139 +16,108 @@ if (!file_exists($settings_file)) {
 
 $settings = json_decode(file_get_contents($settings_file), true);
 
-// Decryption function
+// Decryption Helper
 function decrypt_pass($garbled, $key) {
     if (empty($garbled)) return '';
     list($encrypted_data, $iv) = explode('::', base64_decode($garbled), 2);
     return openssl_decrypt($encrypted_data, ENCRYPTION_CIPHER, $key, 0, $iv);
 }
 
-// Validate request method
+// Validate Request Method
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     echo json_encode(['success' => false, 'message' => 'Invalid request method.']);
     exit;
 }
 
-// Get form data
+// Get Inputs
 $server = $_POST['server'] ?? '';
 $username = $_POST['username'] ?? '';
 $password = $_POST['password'] ?? '';
 
-// Validate inputs
+// Validate Inputs
 if (empty($server) || empty($username) || empty($password)) {
     echo json_encode(['success' => false, 'message' => 'All fields are required.']);
     exit;
 }
 
-// Validate server selection
 if (!in_array($server, ['mid', 'hard'])) {
     echo json_encode(['success' => false, 'message' => 'Invalid server selection.']);
     exit;
 }
 
-// Validate username format (4-10 characters, alphanumeric only)
 if (!preg_match('/^[a-zA-Z0-9]{4,10}$/', $username)) {
     echo json_encode(['success' => false, 'message' => 'Username must be 4-10 characters (letters and numbers only).']);
     exit;
 }
 
-// Validate password length
 if (strlen($password) < 4 || strlen($password) > 20) {
     echo json_encode(['success' => false, 'message' => 'Password must be 4-20 characters.']);
     exit;
 }
 
-// Get database configuration based on server selection
+// --- DYNAMIC DATABASE SELECTION ---
 if ($server === 'mid') {
     $db_config = $settings['database']['mid_rate'];
-    $db_name = "MuOnline";
 } else {
-    $db_config = $settings['database']['hard_rate'];s
-    $db_name = "MuOnlineTest";
+    $db_config = $settings['database']['hard_rate'];
 }
 
-// Database connection options
+// Use dynamic name from settings, fallback to default
+$db_name = isset($db_config['name']) ? $db_config['name'] : 'MuOnline';
+
+// Connection Options
 $connectionOptions = [
     "Database" => $db_name,
     "Uid" => $db_config['user'],
     "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
-    "CharacterSet" => "UTF-8"
+    "CharacterSet" => "UTF-8",
+    "TrustServerCertificate" => 1, // ODBC 18 Fix
+    "Encrypt" => 0
 ];
 
-$serverName = $db_config['host'];
-
-// Connect to database
-$conn = sqlsrv_connect($serverName, $connectionOptions);
+// Connect to SQL Server
+$conn = sqlsrv_connect($db_config['host'], $connectionOptions);
 
 if (!$conn) {
-    $errors = sqlsrv_errors();
-    error_log('Database connection failed: ' . print_r($errors, true));
-    echo json_encode(['success' => false, 'message' => 'Database connection failed.']);
+    // Log the actual error to the PHP error log for the admin to see
+    error_log('Database connection failed: ' . print_r(sqlsrv_errors(), true));
+    echo json_encode(['success' => false, 'message' => 'Database connection failed. Please contact support.']);
     exit;
 }
 
-// Check if username already exists
+// Check if username exists
 $checkSql = "SELECT COUNT(*) as count FROM MEMB_INFO WHERE memb___id = ?";
-$checkParams = [$username];
-$checkStmt = sqlsrv_query($conn, $checkSql, $checkParams);
+$checkStmt = sqlsrv_query($conn, $checkSql, [$username]);
 
-if (!$checkStmt) {
-    $errors = sqlsrv_errors();
-    error_log('Check query failed: ' . print_r($errors, true));
+if ($checkStmt === false) {
+    echo json_encode(['success' => false, 'message' => 'Database error during check.']);
     sqlsrv_close($conn);
-    echo json_encode(['success' => false, 'message' => 'Database query failed.']);
     exit;
 }
 
 $row = sqlsrv_fetch_array($checkStmt, SQLSRV_FETCH_ASSOC);
 if ($row['count'] > 0) {
     sqlsrv_close($conn);
-    echo json_encode(['success' => false, 'message' => 'Username already exists. Please choose another.']);
+    echo json_encode(['success' => false, 'message' => 'Username already exists.']);
     exit;
 }
 
-// Insert new account
-// Note: In MU Online, passwords are typically stored in plain text or with simple encoding
-// You may need to adjust this based on your server's password handling
-$insertSql = "INSERT INTO MEMB_INFO (memb___id, memb__pwd, memb_name, sno__numb, post_code, addr_info, addr_deta, tel__numb, phon_numb, mail_addr, fpas_ques, fpas_answ, job__code, appl_days, modi_days, out__days, true_days, mail_chek, bloc_code, ctl1_code) 
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, GETDATE(), GETDATE(), GETDATE(), GETDATE(), ?, ?, ?)";
-
-$insertParams = [
-    $username,              // memb___id (username)
-    $password,              // memb__pwd (password)
-    $username,              // memb_name (display name, same as username)
-    '0000000000000',        // sno__numb (social security - default)
-    '000000',               // post_code (postal code - default)
-    'N/A',                  // addr_info (address - default)
-    'N/A',                  // addr_deta (detailed address - default)
-    '000-0000-0000',        // tel__numb (telephone - default)
-    '000-0000-0000',        // phon_numb (phone - default)
-    'noemail@example.com',  // mail_addr (email - default)
-    'N/A',                  // fpas_ques (password question - default)
-    'N/A',                  // fpas_answ (password answer - default)
-    '0',                    // job__code (job code - default)
-    0,                      // mail_chek (email verified - 0 = no)
-    0,                      // bloc_code (blocked - 0 = not blocked)
-    0                       // ctl1_code (control code - 0 = normal)
-];
+// Insert New Account
+$insertSql = "INSERT INTO MEMB_INFO (memb___id, memb__pwd, memb_name, sno__numb, post_code, addr_info, addr_deta, tel__numb, phon_numb, mail_addr, fpas_ques, fpas_answ, job__code, appl_days, modi_days, out__days, true_days, mail_chek, bloc_code, ctl1_code) VALUES (?, ?, ?, '0000000000000', '000000', 'N/A', 'N/A', '000-0000-0000', '000-0000-0000', 'noemail@example.com', 'N/A', 'N/A', '0', GETDATE(), GETDATE(), GETDATE(), GETDATE(), 0, 0, 0)";
+$insertParams = [$username, $password, $username];
 
 $insertStmt = sqlsrv_query($conn, $insertSql, $insertParams);
 
-if (!$insertStmt) {
-    $errors = sqlsrv_errors();
-    error_log('Insert query failed: ' . print_r($errors, true));
-    sqlsrv_close($conn);
-    echo json_encode(['success' => false, 'message' => 'Failed to create account. Please try again.']);
-    exit;
+if ($insertStmt) {
+    echo json_encode([
+        'success' => true,
+        'message' => 'Account registered successfully!',
+        'username' => $username,
+        'server' => $server
+    ]);
+} else {
+    echo json_encode(['success' => false, 'message' => 'Failed to create account.']);
 }
 
-// Success!
 sqlsrv_close($conn);
-echo json_encode([
-    'success' => true,
-    'message' => 'Account registered successfully!',
-    'username' => $username,
-    'server' => $server
-]);
-exit;
 ?>
