@@ -1,10 +1,9 @@
 {
     "mid_rate_news": [
         {
-            "id": 1768815157,
-            "date": "January 19, 2026, 5:32 pm",
-            "subject": "SERVER UPDATE:",
-            "details": "<p>SERVER UPDATE:<\/p><p>FIXED TIER3 ANCIENTS<\/p><p>NEW LEVELING MAP (ARENA) VIP ONLY<\/p><p><br><\/p><p>PATCH TOMORROW:<\/p><p>NEW FARMING AND WC BURNING MECH:<\/p><p>WC FARMING:<\/p><p>DS,BC,CASTLE<\/p><p>BOSSES,ELITE BOSSES<\/p><p>GOLDEN INVASION<\/p><p>POUCH OF BLESSING<\/p><p>NEW YEAR INVASION<\/p><p><br><\/p><p>PRIEST JAMES NPC WILL BE ADDED<\/p><p>NPC ITEMS:<\/p><p>SEALED BLOODANGEL ITEMS<\/p><p>SPIRIT NIXIE'S SHARD<\/p><p>BOSS BATTLE TICKET<\/p><p><br><\/p><p>PRIEST JAMES ITEM CURRENCY WILL BE WCOINS.<\/p><p><br><\/p>"
+            "subject": "test",
+            "details": "test",
+            "date": "Jan 21, 2026"
         }
     ],
     "hard_rate_news": []

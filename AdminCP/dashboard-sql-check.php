@@ -6,7 +6,7 @@ $settings = json_decode(file_get_contents('../Configuration/settings.json'), tru
 
 <div class="check-card">
     <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3><?php echo htmlspecialchars($settings['mid_rate_server']['name']); ?> (Mid Rate)</h3>
+        <h3><?php echo htmlspecialchars($settings['mid_rate_server']['name']); ?> (Server 1)</h3>
         <button class="button" onclick="runCheck('mid')" id="btn-mid">Run Check</button>
     </div>
     <div id="result-mid" style="margin-top:10px;"></div>
@@ -14,7 +14,7 @@ $settings = json_decode(file_get_contents('../Configuration/settings.json'), tru
 
 <div class="check-card">
     <div style="display:flex; justify-content:space-between; align-items:center;">
-        <h3><?php echo htmlspecialchars($settings['hard_rate_server']['name']); ?> (Hard Rate)</h3>
+        <h3><?php echo htmlspecialchars($settings['hard_rate_server']['name']); ?> (Server 2)</h3>
         <button class="button" onclick="runCheck('hard')" id="btn-hard">Run Check</button>
     </div>
     <div id="result-hard" style="margin-top:10px;"></div>

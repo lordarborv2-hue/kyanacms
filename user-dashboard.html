@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>My Account - Dashboard</title>
+    <link id="favicon" rel="icon" href="uploads/default-favicon.ico">
+    <link rel="stylesheet" href="Css/style.css?v=25">
+    <style>
+        /* Dashboard Styles */
+        .dash-container { max-width: 1200px; margin: 50px auto; background: #363636; padding: 30px; border-radius: 10px; border: 2px solid #555; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
+        .dash-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #555; padding-bottom: 15px; }
+        .dash-header h1 { margin: 0; color: #c79c6b; }
+        .back-btn { background: #555; color: #fff; text-decoration: none; padding: 8px 15px; border-radius: 5px; border: 1px solid #777; }
+        .logout-btn { background: #dc3545; color: #fff; border: none; padding: 8px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        
+        /* Table */
+        .char-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .char-table th { background: #222; color: #c79c6b; padding: 12px; text-align: left; }
+        .char-table td { background: #2c2c2c; color: #ccc; padding: 10px; border-bottom: 1px solid #444; vertical-align: middle; }
+        .char-table tr:hover td { background: #333; }
+        .level-high { color: #ffd700; font-weight: bold; }
+        .master-lvl { color: #00d4ff; font-weight: bold; }
+        .pk-killer { color: #ff4444; font-weight: bold; }
+
+        /* Manage Button */
+        .manage-btn { background: #007bff; color: white; border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9em; }
+        .manage-btn:hover { background: #0056b3; }
+
+        /* Action Modal */
+        .action-modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); }
+        .action-modal-content { background-color: #2a2a2a; margin: 10% auto; padding: 25px; border: 1px solid #c79c6b; width: 400px; border-radius: 8px; text-align: center; color: white; }
+        .action-btn { display: block; width: 100%; padding: 10px; margin: 10px 0; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.2s; }
+        
+        .btn-reset { background: #28a745; color: white; } .btn-reset:hover { background: #218838; }
+        .btn-stats { background: #17a2b8; color: white; } .btn-stats:hover { background: #138496; }
+        .btn-pk { background: #dc3545; color: white; } .btn-pk:hover { background: #c82333; }
+        .btn-master { background: #6f42c1; color: white; } .btn-master:hover { background: #5a32a3; }
+        .btn-close { background: #6c757d; color: white; }
+    </style>
+</head>
+<body>
+
+    <div class="dash-container">
+        <div class="dash-header">
+            <div>
+                <h1>Account Dashboard</h1>
+                <p style="margin:5px 0 0 0; color:#ccc;">
+                    Welcome, <strong id="user-name" style="color:#7dce82">...</strong> 
+                    (<span id="server-name">...</span>)
+                </p>
+            </div>
+            <div>
+                <button onclick="openPasswordModal()" class="action-btn" style="background:#eebb00; color:#000; width:auto; display:inline-block; margin-right:10px;">Change Password</button>
+                
+                <a href="index.html" class="back-btn">Return to Home</a>
+                <button onclick="logout()" class="logout-btn">Logout</button>
+            </div>
+        </div>
+		
+        <div id="passwordModal" class="action-modal">
+			<div class="action-modal-content" style="width:350px;">
+                <h3 style="color:#eebb00; margin-top:0;">Change Password</h3>
+                
+                <div id="pwd-message" style="margin-bottom:15px;"></div>
+
+                <input type="password" id="old-pass" placeholder="Old Password" style="width:100%; padding:10px; margin-bottom:10px; box-sizing:border-box;">
+                <input type="password" id="new-pass" placeholder="New Password" style="width:100%; padding:10px; margin-bottom:10px; box-sizing:border-box;">
+                <input type="password" id="conf-pass" placeholder="Confirm New Password" style="width:100%; padding:10px; margin-bottom:20px; box-sizing:border-box;">
+
+                <button class="action-btn" style="background:#28a745; color:white;" onclick="submitPasswordChange()">Update Password</button>
+                <button class="action-btn btn-close" onclick="closePasswordModal()">Cancel</button>
+            </div>
+        </div>
+
+        <h2 style="color:#eee; font-size:1.4em;">My Characters</h2>
+        <div id="loading-msg">Loading character data...</div>
+        
+        <table class="char-table" id="char-table" style="display:none;">
+            <thead>
+                <tr>
+                    <th>Name</th>
+                    <th>Class</th>
+                    <th>Level</th>
+                    <th>Master Lvl</th>
+                    <th>Resets</th>
+                    <th>STR</th>
+                    <th>DEX</th>
+                    <th>VIT</th>
+                    <th>ENE</th>
+					<th>CMD</th>
+                    <th>PK</th>
+                    <th>Manage</th>
+                </tr>
+            </thead>
+            <tbody id="char-list">
+                </tbody>
+        </table>
+    </div>
+
+    <div id="manageModal" class="action-modal">
+        <div class="action-modal-content">
+            <h3 id="modal-char-name" style="color:#c79c6b; margin-top:0;">Character Actions</h3>
+            <p style="font-size:0.9em; color:#aaa; margin-bottom:20px;">Select an action for this character.</p>
+            
+            <div id="action-buttons-container">
+                </div>
+
+            <div id="action-result" style="margin:10px 0; font-weight:bold;"></div>
+
+            <button class="action-btn btn-close" onclick="closeManageModal()">Close</button>
+        </div>
+    </div>
+
+    <script src="Scripts/user-dashboard.js?v=4"></script>
+</body>
+</html>

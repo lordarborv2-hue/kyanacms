@@ -21,7 +21,7 @@ body {
 /* --- Main Layout --- */
 .page-wrapper {
     position: relative;
-    padding-top: 80px;
+    padding-top: 140px;
     width: 100%;
     display: flex;
     justify-content: center;
@@ -142,15 +142,17 @@ h2 {
 
 /* --- Download Links & Registration Button --- */
 .dl-link-container {
-    position: absolute;
-    top: -60px;
+	position: absolute;
+    top: -100px; 
     left: 50%;
     transform: translateX(-50%);
     z-index: 999;
     background-color: #363636;
     border-radius: 10px;
-    padding: 10px;
+    padding: 15px;
     border: 2px solid #555;
+    width: 300px; 
+    box-shadow: 0 4px 15px rgba(0,0,0,0.5);
 }
 
 .dl-link-row {
@@ -507,3 +509,68 @@ h2 {
         padding-top: 100px;
     }
 }
+
+/* --- LOGIN BUTTON --- */
+.login-btn {
+    background: #007bff;
+    color: white;
+    padding: 12px 30px;
+    font-weight: bold;
+    border-radius: 8px;
+    border: 2px solid #0056b3;
+    cursor: pointer;
+    width: 100%;
+    font-size: 14px;
+    transition: background-color 0.3s ease;
+    display: block;
+    text-align: center;
+    margin-top: 10px; /* Space between Register and Login */
+}
+.login-btn:hover { background: #0056b3; }
+
+/* --- USER PANEL (DASHBOARD) --- */
+.user-panel {
+    position: absolute;
+    top: -120px; /* Adjust based on your header height */
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 998;
+    background-color: #363636;
+    border-radius: 10px;
+    padding: 15px;
+    border: 2px solid #7dce82;
+    width: 800px;
+    max-width: 90vw;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+.user-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid #555;
+    padding-bottom: 10px;
+    margin-bottom: 10px;
+}
+
+.user-header h3 { margin: 0; color: #f0f0f0; }
+.server-badge { background: #555; padding: 2px 8px; border-radius: 4px; font-size: 0.8em; }
+
+.logout-btn {
+    background: #dc3545;
+    border: 1px solid #a71d2a;
+    color: white;
+    padding: 5px 15px;
+    border-radius: 4px;
+    cursor: pointer;
+}
+
+/* --- CHARACTER TABLE --- */
+.table-wrapper { overflow-x: auto; }
+.char-table { width: 100%; border-collapse: collapse; font-size: 0.9em; }
+.char-table th, .char-table td { padding: 8px; text-align: center; border-bottom: 1px solid #444; }
+.char-table th { background: #222; color: #c79c6b; }
+.char-name { font-weight: bold; color: #fff; text-align: left !important; }
+.char-class { color: #aaa; text-align: left !important; }
+.char-level { color: #eebb00; font-weight: bold; }
+.pk-red { color: #ff4444; font-weight: bold; }

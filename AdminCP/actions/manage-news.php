@@ -2,36 +2,63 @@
 session_start();
 if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) { die('Access Denied.'); }
 require_once '../../config.php';
-date_default_timezone_set('Asia/Singapore');
-$news_file = '../../Configuration/news.json';
-$news_data = json_decode(file_get_contents($news_file), true);
-$action = $_POST['action'] ?? '';
-$server_key = ($_POST['server'] ?? '') . '_news';
-if (!array_key_exists($server_key, $news_data)) { die('Invalid server specified.'); }
 
-if ($action === 'add') {
-    $new_post = ['id' => time(), 'date' => date('F j, Y, g:i a'), 'subject' => $_POST['subject'] ?? 'No Subject', 'details' => $_POST['details'] ?? ''];
-    array_unshift($news_data[$server_key], $new_post);
-    $status = 'Post added successfully.';
-} elseif ($action === 'edit') {
-    $post_id_to_edit = $_POST['id'] ?? '';
-    foreach ($news_data[$server_key] as $index => $post) {
-        if ($post['id'] == $post_id_to_edit) {
-            $news_data[$server_key][$index]['subject'] = $_POST['subject'] ?? 'No Subject';
-            $news_data[$server_key][$index]['details'] = $_POST['details'] ?? '';
-            break;
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    $news_file = '../../Configuration/news.json';
+    
+    // Create file if missing
+    if (!file_exists($news_file)) {
+        file_put_contents($news_file, json_encode(['mid_rate_news' => [], 'hard_rate_news' => []]));
+    }
+    
+    $news_data = json_decode(file_get_contents($news_file), true);
+    $action = $_POST['action'] ?? '';
+    $server = $_POST['server'] ?? 'mid_rate';
+    $target_key = ($server === 'hard_rate') ? 'hard_rate_news' : 'mid_rate_news';
+
+    // --- ADD POST ---
+    if ($action === 'add_post') {
+        $new_post = [
+            'subject' => $_POST['subject'],
+            'details' => $_POST['details'],
+            'date'    => date('M d, Y')
+        ];
+        
+        // Add to beginning of array
+        array_unshift($news_data[$target_key], $new_post);
+        $status = "News posted successfully!";
+    }
+
+    // --- DELETE POST ---
+    elseif ($action === 'delete_post') {
+        $index = (int)$_POST['index'];
+        if (isset($news_data[$target_key][$index])) {
+            array_splice($news_data[$target_key], $index, 1); // Remove item and re-index
+            $status = "News deleted successfully!";
+        } else {
+            $status = "Error: Post not found.";
         }
     }
-    $status = 'Post updated successfully.';
-} elseif ($action === 'delete') {
-    $post_id_to_delete = $_POST['id'] ?? '';
-    $filtered_posts = array_filter($news_data[$server_key], function($post) use ($post_id_to_delete) {
-        if (!is_array($post) || !isset($post['id'])) return true; 
-        return (int)$post['id'] != (int)$post_id_to_delete;
-    });
-    $news_data[$server_key] = array_values($filtered_posts);
-    $status = 'Post deleted successfully.';
+
+    // --- UPDATE POST ---
+    elseif ($action === 'update_post') {
+        $index = (int)$_POST['post_index'];
+        if (isset($news_data[$target_key][$index])) {
+            // Update fields
+            $news_data[$target_key][$index]['subject'] = $_POST['subject'];
+            $news_data[$target_key][$index]['details'] = $_POST['details'];
+            // Optional: Update date on edit? 
+            // $news_data[$target_key][$index]['date'] = date('M d, Y') . ' (Edited)';
+            
+            $status = "News updated successfully!";
+        } else {
+            $status = "Error: Post to update not found.";
+        }
+    }
+
+    // SAVE & REDIRECT
+    file_put_contents($news_file, json_encode($news_data, JSON_PRETTY_PRINT));
+    header('Location: ../dashboard.php?page=news&status=' . urlencode($status));
+    exit;
 }
-file_put_contents($news_file, json_encode($news_data, JSON_PRETTY_PRINT));
-header('Location: ../dashboard.php?page=news&status=' . urlencode($status));
-exit;
+?>

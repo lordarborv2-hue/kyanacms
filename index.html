@@ -5,7 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Loading...</title>
     <link id="favicon" rel="icon" href="uploads/default-favicon.ico">
-    <link rel="stylesheet" href="Css/style.css?v=15">
+    <link rel="stylesheet" href="Css/style.css?v=17">
 </head>
 <body>
     <div id="registrationModal" class="modal">
@@ -17,37 +17,93 @@
             <div id="registrationMessage"></div>
             <form id="registrationForm" onsubmit="handleRegistration(event)">
                 <div class="form-group">
-                    <label for="reg-server">Select Server:</label>
-                    <select id="reg-server" name="server" required>
-                        <option value="">-- Choose Server --</option>
-                        <option value="mid">Server 1</option>
-                        <option value="hard">Server 2</option>
-                    </select>
+                    <label>Select Server:</label>
+                    <select id="reg-server" name="server" required><option value="">Loading...</option></select>
                 </div>
                 <div class="form-group">
-                    <label for="reg-username">Username:</label>
-                    <input type="text" id="reg-username" name="username" required minlength="4" maxlength="10" pattern="[a-zA-Z0-9]+" title="4-10 characters, letters and numbers only">
+                    <label>Username:</label>
+                    <input type="text" id="reg-username" name="username" required minlength="4" maxlength="10">
                 </div>
                 <div class="form-group">
-                    <label for="reg-password">Password:</label>
-                    <input type="password" id="reg-password" name="password" required minlength="4" maxlength="20">
+                    <label>Password:</label>
+                    <input type="password" id="reg-password" name="password" required minlength="4">
                 </div>
                 <div class="form-group">
-                    <label for="reg-confirm-password">Confirm Password:</label>
-                    <input type="password" id="reg-confirm-password" name="confirm_password" required minlength="4" maxlength="20">
+                    <label>Confirm Password:</label>
+                    <input type="password" id="reg-confirm-password" name="confirm_password" required>
                 </div>
                 <button type="submit" class="submit-btn" id="registerSubmitBtn">Register</button>
             </form>
         </div>
     </div>
 
+    <div id="loginModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2>Account Login</h2>
+                <button class="close-btn" onclick="closeLoginModal()">&times;</button>
+            </div>
+            <div id="loginMessage"></div>
+            <form id="loginForm" onsubmit="handleLogin(event)">
+                <div class="form-group">
+                    <label>Select Server:</label>
+                    <select id="login-server" name="server" required>
+                        <option value="">Loading...</option> 
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label>Username:</label>
+                    <input type="text" name="username" required>
+                </div>
+                <div class="form-group">
+                    <label>Password:</label>
+                    <input type="password" name="password" required>
+                </div>
+                <button type="submit" class="submit-btn" id="loginSubmitBtn">Login</button>
+            </form>
+        </div>
+    </div>
+
     <div class="page-wrapper">
-        <div class="dl-link-container">
+        
+        <div class="dl-link-container auth-buttons">
             <div class="dl-link-row">
                 <a href="#" id="dl-link-1" class="dl-link">Loading...</a>
                 <a href="#" id="dl-link-2" class="dl-link">Loading...</a>
             </div>
             <button class="register-btn" onclick="openRegistrationModal()">📝 Register Account</button>
+            <button class="login-btn" onclick="openLoginModal()">🔑 Login to Account</button>
+        </div>
+
+        <div id="user-panel" class="user-panel" style="display:none;">
+            <div class="user-header">
+                <div>
+                    <h3>Welcome, <span id="user-account-name" style="color:#7dce82">User</span></h3>
+                    <span class="server-badge" id="user-server-name">Server</span>
+                </div>
+                <button class="logout-btn" onclick="logout()">Logout</button>
+            </div>
+            
+            <div class="table-wrapper">
+                <table class="char-table">
+                    <thead>
+                        <tr>
+                            <th>Name</th>
+                            <th>Class</th>
+                            <th>Lvl</th>
+                            <th>Str</th>
+                            <th>Dex</th>
+                            <th>Vit</th>
+                            <th>Ene</th>
+                            <th>Cmd</th>
+                            <th>PK</th>
+                            <th>Loc</th>
+                        </tr>
+                    </thead>
+                    <tbody id="char-table-body">
+                        </tbody>
+                </table>
+            </div>
         </div>
 
         <div class="container">
@@ -79,7 +135,19 @@
         </div>
     </div>
     
-    <script src="Scripts/main.js?v=12"></script>
-    <script src="Scripts/registration.js?v=5"></script>
+    <script src="Scripts/main.js?v=17"></script>
+    <script src="Scripts/registration.js?v=4"></script>
+    <script src="Scripts/login.js?v=1"></script>
+    <script>
+        // Copy server options to login dropdown when main.js loads them
+        const observer = new MutationObserver(function(mutations) {
+            const regSelect = document.getElementById('reg-server');
+            const loginSelect = document.getElementById('login-server');
+            if (regSelect && loginSelect && regSelect.innerHTML.includes('option value')) {
+                loginSelect.innerHTML = regSelect.innerHTML;
+            }
+        });
+        observer.observe(document.getElementById('reg-server'), { childList: true });
+    </script>
 </body>
 </html>

@@ -1,12 +1,12 @@
 <?php
-// 1. Suppress HTML errors to prevent "Unexpected token"
+// 1. Suppress HTML errors to prevent JSON crashes
 error_reporting(0);
 ini_set('display_errors', 0);
 
 header('Content-Type: application/json');
 session_start();
 
-// 2. Security Check
+// 2. Security Check: Only allow logged-in admins
 if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) { 
     echo json_encode(['connection' => false, 'error' => 'Access Denied']); 
     exit; 
@@ -16,12 +16,12 @@ if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) {
 if (!function_exists('sqlsrv_connect')) {
     echo json_encode([
         'connection' => false, 
-        'error' => 'CRITICAL: The "sqlsrv" driver is not loaded. Please restart XAMPP (Apache) and verify php.ini.'
+        'error' => 'CRITICAL: The "php_sqlsrv" driver is not loaded. Please restart XAMPP.'
     ]);
     exit;
 }
 
-require_once '../../config.php';
+require_once '../../config.php'; //
 
 // Decryption function
 function decrypt_pass($garbled, $key) {
@@ -31,35 +31,46 @@ function decrypt_pass($garbled, $key) {
 }
 
 $server = $_POST['server'] ?? '';
-$settings = json_decode(file_get_contents('../../Configuration/settings.json'), true);
+$settings_file = '../../Configuration/settings.json'; //
 
+if (!file_exists($settings_file)) {
+    echo json_encode(['connection' => false, 'error' => 'Settings file not found.']);
+    exit;
+}
+
+$settings = json_decode(file_get_contents($settings_file), true);
+
+// --- DYNAMIC SERVER SELECTION ---
 if ($server === 'mid') {
     $db_config = $settings['database']['mid_rate'];
-    $db_name = "MuOnline"; 
+    // Use dynamic name from settings, fallback to 'MuOnline'
+    $db_name = $db_config['name'] ?? 'MuOnline'; 
 } elseif ($server === 'hard') {
     $db_config = $settings['database']['hard_rate'];
-    $db_name = "MuOnlineEly";
+    // Use dynamic name from settings, fallback to 'MuOnlineEly'
+    $db_name = $db_config['name'] ?? 'MuOnlineEly';
 } else {
     echo json_encode(['connection' => false, 'error' => 'Invalid server type selected']);
     exit;
 }
 
-// --- FIX FOR ODBC DRIVER 18 ---
+// --- CONNECTION OPTIONS (Support for Driver 18 & Below) ---
 $connectionOptions = [
     "Database" => $db_name,
     "Uid" => $db_config['user'],
     "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
     "CharacterSet" => "UTF-8",
     "LoginTimeout" => 5,
-    "TrustServerCertificate" => 1, // <--- THIS IS REQUIRED FOR ODBC 18
-    "Encrypt" => 0 // Optional: ensure encryption doesn't break local connections
+    "TrustServerCertificate" => 1, // Required for ODBC Driver 18+
+    "Encrypt" => 0                 // broadens compatibility for older setups
 ];
 
 try {
     $conn = sqlsrv_connect($db_config['host'], $connectionOptions);
 
     if ($conn) {
-        $tables_to_check = ['MEMB_INFO', 'MEMB_STAT', 'Guild', 'MuCastle_DATA', 'Character'];
+        // Connection successful, check specific tables
+        $tables_to_check = ['MEMB_INFO', 'MEMB_STAT', 'Guild', 'Character'];
         $table_results = [];
         
         foreach ($tables_to_check as $table) {
@@ -70,19 +81,28 @@ try {
         }
         
         sqlsrv_close($conn);
-        echo json_encode(['connection' => true, 'tables' => $table_results]);
+        echo json_encode([
+            'connection' => true,
+            'tables' => $table_results
+        ]);
     } else {
+        // Connection failed, extract error message
         $errors = sqlsrv_errors();
         $error_msg = ($errors) ? $errors[0]['message'] : 'Unknown error';
         
-        // Friendly error for login failed
         if (strpos($error_msg, 'Login failed') !== false) {
-             $error_msg = "Login failed. Please check the SQL User/Password in Settings.";
+             $error_msg = "Login failed. Please check User/Password in Database Settings.";
         }
         
-        echo json_encode(['connection' => false, 'error' => 'Connection Failed: ' . $error_msg]);
+        echo json_encode([
+            'connection' => false,
+            'error' => 'Connection Failed: ' . $error_msg
+        ]);
     }
 } catch (Exception $e) {
-    echo json_encode(['connection' => false, 'error' => 'System Exception: ' . $e->getMessage()]);
+    echo json_encode([
+        'connection' => false,
+        'error' => 'System Exception: ' . $e->getMessage()
+    ]);
 }
 ?>

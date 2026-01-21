@@ -1,7 +1,6 @@
 <?php
 $settings = json_decode(file_get_contents('../Configuration/settings.json'), true);
-
-// Default visibility to true if not set
+// Defaults
 $mid_visible = $settings['mid_rate_server']['visible'] ?? true;
 $hard_visible = $settings['hard_rate_server']['visible'] ?? true;
 ?>
@@ -20,7 +19,6 @@ $hard_visible = $settings['hard_rate_server']['visible'] ?? true;
     <hr style="margin: 20px 0;">
 
     <h4>Server Configuration</h4>
-    <p>Configure which servers are displayed on the homepage.</p>
 
     <div style="background:#f9f9f9; padding:15px; border:1px solid #ddd; border-radius:5px; margin-bottom:20px;">
         <h5 style="margin-top:0;">Server 1 (Left Side)</h5>

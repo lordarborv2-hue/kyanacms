@@ -74,6 +74,7 @@ $page = $_GET['page'] ?? 'news';
                 <a href="?page=links" class="<?php echo $page === 'links' ? 'active' : ''; ?>">Links</a>
                 <a href="?page=wallpaper" class="<?php echo $page === 'wallpaper' ? 'active' : ''; ?>">Wallpaper</a>
                 <a href="?page=settings" class="<?php echo $page === 'settings' ? 'active' : ''; ?>">Settings</a>
+				<a href="?page=user_settings" class="<?php echo ($page == 'user_settings') ? 'active' : ''; ?>">User Dashboard</a>
                 <a href="?page=database" class="<?php echo $page === 'database' ? 'active' : ''; ?>">Database</a>
                 <a href="?page=sqlcheck" class="<?php echo $page === 'sqlcheck' ? 'active' : ''; ?>">SQL Checker</a>
                 <a href="?page=security" class="<?php echo $page === 'security' ? 'active' : ''; ?>">Security</a>
@@ -91,7 +92,8 @@ $page = $_GET['page'] ?? 'news';
                 case 'database': include 'dashboard-database.php'; break;
                 case 'sqlcheck': include 'dashboard-sql-check.php'; break;
                 case 'security': include 'dashboard-security.php'; break;
-                default: include 'dashboard-news.php'; break;
+				case 'user_settings': include 'dashboard-user-settings.php'; break;
+                default: echo "<p>Welcome to the Admin Dashboard.</p>"; break;
             }
             ?>
 
