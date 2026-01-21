@@ -6,10 +6,6 @@ $settings = json_decode(file_get_contents($settings_file), true);
 $news_data = file_exists($news_file) ? json_decode(file_get_contents($news_file), true) : ['mid_rate_news' => [], 'hard_rate_news' => []];
 ?>
 
-<script src="https://code.jquery.com/jquery-3.4.1.min.js"></script>
-<link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.css" rel="stylesheet">
-<script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote-lite.min.js"></script>
-
 <h2 style="text-align:center; margin-bottom:20px;">Manage News</h2>
 
 <div style="background:#fff; padding:20px; border:1px solid #ddd; border-radius:5px; max-width: 900px; margin: 0 auto; box-shadow: 0 4px 6px rgba(0,0,0,0.1);">
@@ -62,7 +58,6 @@ $news_data = file_exists($news_file) ? json_decode(file_get_contents($news_file)
             <?php if (!empty($news_data['mid_rate_news'])): ?>
                 <?php foreach ($news_data['mid_rate_news'] as $index => $post): ?>
                 <?php 
-                    // Base64 Encode to prevent special characters breaking JS
                     $safe_subject = base64_encode($post['subject']);
                     $safe_details = base64_encode($post['details']);
                 ?>
@@ -75,7 +70,7 @@ $news_data = file_exists($news_file) ? json_decode(file_get_contents($news_file)
                     <td style="padding:12px;">
                         <div style="display:flex; justify-content:center; align-items:center; gap:8px;">
                             <button type="button" 
-                                    onclick="editPost(this)" 
+                                    class="edit-post-btn" 
                                     data-server="mid_rate"
                                     data-index="<?php echo $index; ?>"
                                     data-subject="<?php echo $safe_subject; ?>"
@@ -129,7 +124,7 @@ $news_data = file_exists($news_file) ? json_decode(file_get_contents($news_file)
                     <td style="padding:12px;">
                         <div style="display:flex; justify-content:center; align-items:center; gap:8px;">
                             <button type="button"
-                                    onclick="editPost(this)" 
+                                    class="edit-post-btn" 
                                     data-server="hard_rate"
                                     data-index="<?php echo $index; ?>"
                                     data-subject="<?php echo $safe_subject; ?>"
@@ -157,85 +152,3 @@ $news_data = file_exists($news_file) ? json_decode(file_get_contents($news_file)
         </tbody>
     </table>
 </div>
-
-<script>
-    $(document).ready(function() {
-        // 1. Initialize Summernote with YOUR PREFERRED TOOLBAR
-        $('#details').summernote({
-            placeholder: 'Write your news details here...',
-            tabsize: 2,
-            height: 300,
-            toolbar: [
-                ['style', ['style']],
-                ['font', ['bold', 'underline', 'clear', 'fontname', 'fontsize']], // Font settings
-                ['color', ['color']], // Color setting
-                ['para', ['ul', 'ol', 'paragraph']], // Lists and Paragraph
-                ['table', ['table']], // Table support
-                ['insert', ['link', 'picture', 'video']], // Media
-                ['view', ['fullscreen', 'codeview', 'help']] // View options
-            ]
-        });
-
-        // 2. Force Sync on Submit
-        $('#news-form').on('submit', function() {
-            var content = $('#details').summernote('code');
-            document.getElementById('details').value = content;
-        });
-    });
-
-    // 3. EDIT POST FUNCTION
-    function editPost(btn) {
-        window.scrollTo({ top: 0, behavior: 'smooth' });
-
-        // Get Attributes
-        var server = btn.getAttribute('data-server');
-        var index = btn.getAttribute('data-index');
-        var b64Subject = btn.getAttribute('data-subject');
-        var b64Details = btn.getAttribute('data-details');
-
-        // Decode Base64 safely
-        try {
-            var subject = decodeURIComponent(escape(window.atob(b64Subject)));
-            var details = decodeURIComponent(escape(window.atob(b64Details)));
-        } catch (e) {
-            console.error("Decoding error", e);
-            var subject = "";
-            var details = "";
-        }
-
-        // Fill Form Fields
-        document.getElementById('form-title').textContent = "Edit Existing Post";
-        document.getElementById('form-action').value = "update_post";
-        document.getElementById('post_index').value = index;
-        document.getElementById('server_select').value = server;
-        document.getElementById('subject').value = subject;
-        
-        // Load into Editor (Without Resetting first, to avoid clearing glitches)
-        $('#details').summernote('code', details);
-
-        // Change Button State
-        var submitBtn = document.getElementById('submit-btn');
-        submitBtn.textContent = "Update Post";
-        submitBtn.style.background = "#007bff"; // Ensure blue
-        
-        document.getElementById('cancel-btn').style.display = "block";
-    }
-
-    // 4. RESET FORM FUNCTION
-    function resetForm() {
-        document.getElementById('form-title').textContent = "Add New Post";
-        document.getElementById('form-action').value = "add_post";
-        document.getElementById('post_index').value = "";
-        document.getElementById('subject').value = "";
-        
-        // Clear Editor
-        $('#details').summernote('reset');
-        
-        // Reset Buttons
-        var submitBtn = document.getElementById('submit-btn');
-        submitBtn.textContent = "Add Post";
-        submitBtn.style.background = "#007bff"; 
-        
-        document.getElementById('cancel-btn').style.display = "none";
-    }
-</script>

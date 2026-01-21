@@ -27,8 +27,8 @@ $page = $_GET['page'] ?? 'news';
 <html lang="en">
 <head>
     <meta charset="UTF-8"><title>Admin Dashboard</title>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Trumbowyg/2.27.3/ui/trumbowyg.min.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/Trumbowyg/2.27.3/plugins/colors/ui/trumbowyg.colors.min.css">
+    <!-- Bootstrap for Summernote -->
+    <link href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif; background-color: #f0f2f5; margin: 20px; color: #333; }
         .container { background-color: white; padding: 30px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.1); max-width: 900px; margin: auto; }
@@ -63,6 +63,9 @@ $page = $_GET['page'] ?? 'news';
         .status-badge.error { background: #f8d7da; color: #721c24; }
         .check-list { list-style: none; padding: 0; margin-top: 10px; }
         .check-list li { margin-bottom: 5px; padding: 5px; border-bottom: 1px solid #eee; display: flex; justify-content: space-between; }
+        /* Summernote Fixes */
+        .note-editor.note-frame { border: 1px solid #ddd; }
+        .note-toolbar { background: #f5f5f5; border-bottom: 1px solid #ddd; }
     </style>
 </head>
 <body>
@@ -111,18 +114,121 @@ $page = $_GET['page'] ?? 'news';
     </div>
     
     <?php if ($is_logged_in && $page === 'news'): ?>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.7.1/jquery.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Trumbowyg/2.27.3/trumbowyg.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/Trumbowyg/2.27.3/plugins/colors/trumbowyg.colors.min.js"></script>
+    <!-- jQuery and Summernote for News Editor -->
+    <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
+    <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.js"></script>
+    
     <script>
-        $(document).ready(function() {
-            $('#details-editor').trumbowyg({
-                btns: [['viewHTML'], ['undo', 'redo'], ['formatting'], ['strong', 'em', 'del'], ['foreColor', 'backColor'], ['justifyLeft', 'justifyCenter', 'justifyRight', 'justifyFull'], ['unorderedList', 'orderedList'], ['horizontalRule'], ['removeformat'], ['fullscreen']],
-                semantic: false,
-                removeformatPasted: false
-            });
-            $('.news-header').on('click', function() { $(this).closest('.news-item').toggleClass('active'); });
+    $(document).ready(function() {
+        console.log("Initializing Summernote editor...");
+        
+        // Initialize Summernote
+        $('#details').summernote({
+            placeholder: 'Write your news details here...',
+            tabsize: 2,
+            height: 350,
+            toolbar: [
+                ['style', ['style']],
+                ['font', ['bold', 'underline', 'italic', 'clear']],
+                ['fontname', ['fontname']],
+                ['fontsize', ['fontsize']],
+                ['color', ['color']],
+                ['para', ['ul', 'ol', 'paragraph']],
+                ['table', ['table']],
+                ['insert', ['link', 'picture', 'video']],
+                ['view', ['fullscreen', 'codeview', 'help']]
+            ]
         });
+
+        console.log("Summernote initialized successfully");
+
+        // Handle Edit Button Clicks
+        $(document).on('click', '.edit-post-btn', function() {
+            console.log("Edit button clicked");
+            var btn = this;
+            
+            // Scroll to top
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+
+            // Get data attributes
+            var server = btn.getAttribute('data-server');
+            var index = btn.getAttribute('data-index');
+            var b64Subject = btn.getAttribute('data-subject');
+            var b64Details = btn.getAttribute('data-details');
+
+            console.log("Raw data:", { server, index, b64Subject, b64Details });
+
+            // Decode Base64
+            var subject = '';
+            var details = '';
+            
+            try {
+                subject = decodeURIComponent(escape(window.atob(b64Subject)));
+                console.log("Decoded subject:", subject);
+            } catch (e) {
+                console.error("Error decoding subject:", e);
+            }
+            
+            try {
+                details = decodeURIComponent(escape(window.atob(b64Details)));
+                console.log("Decoded details:", details);
+            } catch (e) {
+                console.error("Error decoding details:", e);
+            }
+
+            // Update form fields
+            document.getElementById('form-title').textContent = "Edit Existing Post";
+            document.getElementById('form-action').value = "update_post";
+            document.getElementById('post_index').value = index;
+            document.getElementById('server_select').value = server;
+            document.getElementById('subject').value = subject;
+            
+            // Update Summernote content
+            console.log("Setting Summernote content...");
+            $('#details').summernote('code', details);
+            console.log("Summernote content set");
+
+            // Update buttons
+            var submitBtn = document.getElementById('submit-btn');
+            submitBtn.textContent = "Update Post";
+            submitBtn.style.background = "#28a745";
+            
+            document.getElementById('cancel-btn').style.display = "block";
+        });
+
+        // Handle form submission
+        $('#news-form').on('submit', function(e) {
+            var content = $('#details').summernote('code');
+            $('#details').val(content);
+            console.log("Form submitting with content:", content);
+        });
+
+        // Collapsible news items (if any exist on page)
+        $('.news-header').on('click', function() {
+            $(this).closest('.news-item').toggleClass('active');
+        });
+    });
+
+    // Reset Form Function
+    function resetForm() {
+        console.log("Resetting form");
+        document.getElementById('form-title').textContent = "Add New Post";
+        document.getElementById('form-action').value = "add_post";
+        document.getElementById('post_index').value = "";
+        document.getElementById('subject').value = "";
+        
+        // Clear Summernote
+        $('#details').summernote('code', '');
+        
+        // Reset buttons
+        var submitBtn = document.getElementById('submit-btn');
+        submitBtn.textContent = "Add Post";
+        submitBtn.style.background = "#007bff";
+        
+        document.getElementById('cancel-btn').style.display = "none";
+    }
     </script>
     <?php endif; ?>
 </body>

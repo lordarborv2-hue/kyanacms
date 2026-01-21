@@ -1,8 +1,13 @@
 {
     "mid_rate_news": [
         {
+            "subject": "123",
+            "details": "<p><br><\/p><table class=\"table table-bordered\"><tbody><tr><td>test<\/td><td>321<\/td><\/tr><tr><td>t<\/td><td>132<\/td><\/tr><\/tbody><\/table><p>123<\/p>",
+            "date": "Jan 21, 2026"
+        },
+        {
             "subject": "test",
-            "details": "test",
+            "details": "<p><br><\/p><h4>test<\/h4><p><\/p><p><br><\/p><table class=\"table table-bordered\" style=\"background-color: rgb(255, 255, 255); width: 733.333px;\"><tbody><tr><td style=\"line-height: 1.42857;\"><span style=\"font-family: &quot;Comic Sans MS&quot;;\"><b>Test<\/b><\/span><\/td><td style=\"line-height: 1.42857;\"><span style=\"font-family: Impact;\"><b>TEst<\/b><\/span><\/td><\/tr><tr><td style=\"line-height: 1.42857;\"><table class=\"table table-bordered\" style=\"width: 733.333px;\"><tbody><tr><td style=\"line-height: 1.42857;\"><font color=\"#000000\" style=\"background-color: rgb(255, 255, 0);\"><b>Test<\/b><\/font><\/td><td style=\"line-height: 1.42857;\"><b>TEst<\/b><\/td><\/tr><tr><td style=\"line-height: 1.42857;\"><b>Announcement<\/b><\/td><td style=\"line-height: 1.42857;\">Yey<\/td><\/tr><\/tbody><\/table><\/td><td style=\"line-height: 1.42857;\">Yey<\/td><\/tr><\/tbody><\/table>",
             "date": "Jan 21, 2026"
         }
     ],
