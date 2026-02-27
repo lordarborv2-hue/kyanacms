@@ -2,116 +2,214 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Account - Dashboard</title>
-    <link id="favicon" rel="icon" href="uploads/default-favicon.ico">
-    <link rel="stylesheet" href="Css/style.css?v=25">
-    <style>
-        /* Dashboard Styles */
-        .dash-container { max-width: 1200px; margin: 50px auto; background: #363636; padding: 30px; border-radius: 10px; border: 2px solid #555; box-shadow: 0 10px 30px rgba(0,0,0,0.5); }
-        .dash-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; border-bottom: 2px solid #555; padding-bottom: 15px; }
-        .dash-header h1 { margin: 0; color: #c79c6b; }
-        .back-btn { background: #555; color: #fff; text-decoration: none; padding: 8px 15px; border-radius: 5px; border: 1px solid #777; }
-        .logout-btn { background: #dc3545; color: #fff; border: none; padding: 8px 20px; border-radius: 5px; cursor: pointer; font-weight: bold; }
+    <title>User Dashboard - MU Online</title>
+    <link rel="stylesheet" href="styles.css"> <style>
+        body { 
+            font-family: Arial, sans-serif; 
+            background-color: #1a1a1a; 
+            background-size: cover;          /* Forces wallpaper to cover screen */
+            background-position: center;     /* Centers the wallpaper */
+            background-attachment: fixed;    /* Prevents wallpaper from scrolling */
+            color: #fff; 
+            margin: 0; 
+            padding: 20px; 
+        }
+        .dashboard-container { max-width: 1000px; margin: 0 auto; background: rgba(30, 30, 30, 0.9); padding: 20px; border-radius: 8px; border: 1px solid #444; }
+        .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #555; padding-bottom: 10px; margin-bottom: 20px; }
+        .stats-bar { display: flex; gap: 15px; background: #222; padding: 15px; border-radius: 5px; border: 1px solid #444; margin-bottom: 20px; }
+        .stat-box { flex: 1; text-align: center; }
+        .stat-box span { display: block; font-size: 1.2em; font-weight: bold; color: #f1c40f; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 10px; }
+        .tab-btn { background: #333; color: #fff; border: 1px solid #555; padding: 10px 20px; cursor: pointer; border-radius: 4px; }
+        .tab-btn.active, .tab-btn:hover { background: #007bff; border-color: #007bff; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+        th, td { padding: 10px; border: 1px solid #444; text-align: center; }
+        th { background: #333; }
+        .btn { background: #28a745; color: #fff; border: none; padding: 8px 15px; cursor: pointer; border-radius: 4px; }
+        .btn:hover { background: #218838; }
+        .btn-danger { background: #dc3545; }
         
-        /* Table */
-        .char-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        .char-table th { background: #222; color: #c79c6b; padding: 12px; text-align: left; }
-        .char-table td { background: #2c2c2c; color: #ccc; padding: 10px; border-bottom: 1px solid #444; vertical-align: middle; }
-        .char-table tr:hover td { background: #333; }
-        .level-high { color: #ffd700; font-weight: bold; }
-        .master-lvl { color: #00d4ff; font-weight: bold; }
-        .pk-killer { color: #ff4444; font-weight: bold; }
-
-        /* Manage Button */
-        .manage-btn { background: #007bff; color: white; border: none; padding: 5px 12px; border-radius: 4px; cursor: pointer; font-size: 0.9em; }
-        .manage-btn:hover { background: #0056b3; }
-
-        /* Action Modal */
-        .action-modal { display: none; position: fixed; z-index: 2000; left: 0; top: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.8); }
-        .action-modal-content { background-color: #2a2a2a; margin: 10% auto; padding: 25px; border: 1px solid #c79c6b; width: 400px; border-radius: 8px; text-align: center; color: white; }
-        .action-btn { display: block; width: 100%; padding: 10px; margin: 10px 0; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; font-size: 14px; transition: 0.2s; }
+        /* Webshop Specific Styles */
+        .shop-container { display: flex; gap: 20px; }
+        .shop-left { flex: 1; background: #222; padding: 15px; border-radius: 5px; border: 1px solid #444; }
+        .shop-right { flex: 1; background: #222; padding: 15px; border-radius: 5px; border: 1px solid #444; display: flex; flex-direction: column; }
+        .form-group { margin-bottom: 15px; }
+        .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
+        .form-group select, .form-group input[type="number"] { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #555; background: #333; color: #fff; }
+        .checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #2a2a2a; padding: 10px; border-radius: 4px; border: 1px solid #444; }
         
-        .btn-reset { background: #28a745; color: white; } .btn-reset:hover { background: #218838; }
-        .btn-stats { background: #17a2b8; color: white; } .btn-stats:hover { background: #138496; }
-        .btn-pk { background: #dc3545; color: white; } .btn-pk:hover { background: #c82333; }
-        .btn-master { background: #6f42c1; color: white; } .btn-master:hover { background: #5a32a3; }
-        .btn-close { background: #6c757d; color: white; }
+        /* Modals */
+        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; }
+        .modal-content { background: #222; max-width: 400px; margin: 100px auto; padding: 20px; border-radius: 5px; border: 1px solid #555; }
     </style>
 </head>
 <body>
 
-    <div class="dash-container">
-        <div class="dash-header">
-            <div>
-                <h1>Account Dashboard</h1>
-                <p style="margin:5px 0 0 0; color:#ccc;">
-                    Welcome, <strong id="user-name" style="color:#7dce82">...</strong> 
-                    (<span id="server-name">...</span>)
-                </p>
-            </div>
-            <div>
-                <button onclick="openPasswordModal()" class="action-btn" style="background:#eebb00; color:#000; width:auto; display:inline-block; margin-right:10px;">Change Password</button>
-                
-                <a href="index.html" class="back-btn">Return to Home</a>
-                <button onclick="logout()" class="logout-btn">Logout</button>
-            </div>
+<div class="dashboard-container">
+    <div class="header">
+        <h2>Welcome, <span id="user-name" style="color: #007bff;">User</span></h2>
+        <div>
+            <span id="server-name" style="margin-right: 15px; color: #aaa;">Server</span>
+            <button class="btn btn-danger" onclick="logout()">Logout</button>
         </div>
-		
-        <div id="passwordModal" class="action-modal">
-			<div class="action-modal-content" style="width:350px;">
-                <h3 style="color:#eebb00; margin-top:0;">Change Password</h3>
-                
-                <div id="pwd-message" style="margin-bottom:15px;"></div>
+    </div>
 
-                <input type="password" id="old-pass" placeholder="Old Password" style="width:100%; padding:10px; margin-bottom:10px; box-sizing:border-box;">
-                <input type="password" id="new-pass" placeholder="New Password" style="width:100%; padding:10px; margin-bottom:10px; box-sizing:border-box;">
-                <input type="password" id="conf-pass" placeholder="Confirm New Password" style="width:100%; padding:10px; margin-bottom:20px; box-sizing:border-box;">
+    <div class="stats-bar">
+        <div class="stat-box">WebCredits<span id="stat-web-credits">0</span></div>
+        <div class="stat-box">WCoinC<span id="stat-wcoinc">0</span></div>
+        <div class="stat-box">WCoinP<span id="stat-wcoinp">0</span></div>
+        <div class="stat-box">GoblinPoints<span id="stat-goblin">0</span></div>
+        <button class="btn" style="background:#17a2b8;" onclick="openConvertModal()">Convert</button>
+        <button class="btn" style="background:#6c757d;" onclick="openPasswordModal()">Password</button>
+    </div>
 
-                <button class="action-btn" style="background:#28a745; color:white;" onclick="submitPasswordChange()">Update Password</button>
-                <button class="action-btn btn-close" onclick="closePasswordModal()">Cancel</button>
-            </div>
-        </div>
+    <div class="tabs">
+        <button class="tab-btn active" onclick="switchTab('characters')">My Characters</button>
+        <button class="tab-btn" onclick="switchTab('webshop')">Webshop</button>
+    </div>
 
-        <h2 style="color:#eee; font-size:1.4em;">My Characters</h2>
-        <div id="loading-msg">Loading character data...</div>
-        
-        <table class="char-table" id="char-table" style="display:none;">
+    <div id="loading-msg" style="text-align: center; padding: 20px; color: yellow;">Loading data...</div>
+
+    <div id="tab-characters" class="tab-content active">
+        <table id="char-table" style="display:none;">
             <thead>
                 <tr>
-                    <th>Name</th>
-                    <th>Class</th>
-                    <th>Level</th>
-                    <th>Master Lvl</th>
-                    <th>Resets</th>
-                    <th>STR</th>
-                    <th>DEX</th>
-                    <th>VIT</th>
-                    <th>ENE</th>
-					<th>CMD</th>
-                    <th>PK</th>
-                    <th>Manage</th>
+                    <th>Name</th><th>Class</th><th>Level</th><th>Master Lvl</th><th>Resets</th>
+                    <th>STR</th><th>AGI</th><th>VIT</th><th>ENE</th><th>CMD</th><th>PK</th><th>Action</th>
                 </tr>
             </thead>
-            <tbody id="char-list">
-                </tbody>
+            <tbody id="char-list"></tbody>
         </table>
     </div>
 
-    <div id="manageModal" class="action-modal">
-        <div class="action-modal-content">
-            <h3 id="modal-char-name" style="color:#c79c6b; margin-top:0;">Character Actions</h3>
-            <p style="font-size:0.9em; color:#aaa; margin-bottom:20px;">Select an action for this character.</p>
-            
-            <div id="action-buttons-container">
+    <div id="tab-webshop" class="tab-content">
+        <div class="shop-container">
+            <div class="shop-left">
+                <div class="form-group">
+                    <label>Category:</label>
+                    <select id="shop-category" onchange="filterShopItems()"></select>
+                </div>
+                <div class="form-group">
+                    <label>Item:</label>
+                    <select id="shop-item" onchange="applyItemFilters(); calculateShopPrice();">
+                        <option value="">-- Choose Category First --</option>
+                    </select>
+                </div>
+                
+                <div id="shop-group-level" class="form-group" style="display:none;">
+                    <label>Item Level:</label>
+                    <select id="shop-level" onchange="calculateShopPrice()">
+                        <option value="0">+0</option><option value="1">+1</option><option value="2">+2</option>
+                        <option value="3">+3</option><option value="4">+4</option><option value="5">+5</option>
+                        <option value="6">+6</option><option value="7">+7</option><option value="8">+8</option>
+                        <option value="9">+9</option><option value="10">+10</option><option value="11">+11</option>
+                        <option value="12">+12</option><option value="13">+13</option><option value="14">+14</option>
+                        <option value="15">+15</option>
+                    </select>
                 </div>
 
-            <div id="action-result" style="margin:10px 0; font-weight:bold;"></div>
+                <div id="shop-group-luckskill" class="checkbox-grid" style="display:none; margin-bottom: 15px;">
+                    <div><label><input type="checkbox" id="shop-luck" onchange="calculateShopPrice()"> Luck</label></div>
+                    <div><label><input type="checkbox" id="shop-skill" onchange="calculateShopPrice()"> Skill</label></div>
+                </div>
 
-            <button class="action-btn btn-close" onclick="closeManageModal()">Close</button>
+                <div id="shop-group-exc" style="display:none; margin-bottom: 15px;">
+                    <label>Excellent Options:</label>
+                    <div class="checkbox-grid">
+                        <label><input type="checkbox" class="shop-exc" value="1" onchange="calculateShopPrice()"> Exc Opt 1 (Mana)</label>
+                        <label><input type="checkbox" class="shop-exc" value="2" onchange="calculateShopPrice()"> Exc Opt 2 (HP)</label>
+                        <label><input type="checkbox" class="shop-exc" value="4" onchange="calculateShopPrice()"> Exc Opt 3 (+Speed)</label>
+                        <label><input type="checkbox" class="shop-exc" value="8" onchange="calculateShopPrice()"> Exc Opt 4 (+Dmg/Ref)</label>
+                        <label><input type="checkbox" class="shop-exc" value="16" onchange="calculateShopPrice()"> Exc Opt 5 (+Dmg%/Def)</label>
+                        <label><input type="checkbox" class="shop-exc" value="32" onchange="calculateShopPrice()"> Exc Opt 6 (Exc Dmg/Zen)</label>
+                    </div>
+                </div>
+            </div>
+
+            <div class="shop-right">
+                <div id="shop-group-advanced" style="display:none; flex-direction:column; gap:10px; background:#2a2a2a; padding:15px; border-radius:5px; border:1px solid #555; margin-bottom:15px;">
+                    
+                    <div style="display:none;">
+                        <label style="color:#eebb00; font-weight:bold;"><input type="checkbox" id="shop-380" onchange="calculateShopPrice()"> Add 380 PvP Option</label>
+                    </div>
+
+                    <div id="shop-group-ancient" style="display:none;">
+                        <label style="color:#28a745; font-weight:bold;">Ancient Set Option:</label>
+                        <select id="shop-ancient" onchange="calculateShopPrice()" style="width:100%; padding:8px; background:#333; color:#fff; border:1px solid #555; border-radius:4px;">
+                            <option value="0">None</option>
+                        </select>
+                    </div>
+
+                    <div id="shop-group-harmony" style="display:none;">
+                        <label style="color:#ffc107; font-weight:bold;">Harmony Option (Yellow):</label>
+                        <select id="shop-harmony" onchange="calculateShopPrice()" style="width:100%; padding:8px; background:#333; color:#fff; border:1px solid #555; border-radius:4px;">
+                            <option value="0">None</option>
+                        </select>
+                    </div>
+
+                    <div id="shop-group-sockets" style="display:none;">
+                        <label style="color:#b19cd9; font-weight:bold;">Empty Sockets:</label>
+                        <select id="shop-sockets" onchange="calculateShopPrice()" style="width:100%; padding:8px; background:#333; color:#fff; border:1px solid #555; border-radius:4px;">
+                            <option value="0">0</option>
+                        </select>
+                    </div>
+                </div>
+
+                <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #444; text-align: center;">
+                    <div style="font-size: 1.2em; margin-bottom: 10px;">Total Price: <span id="shop-total-price" style="color:#f1c40f; font-weight:bold; font-size:1.5em;">0</span> Credits</div>
+                    <button class="btn" style="width:100%; font-size:1.1em; padding:15px;" onclick="buyWebshopItem()">Buy Item</button>
+                    <div id="shop-message" style="margin-top: 15px; font-weight: bold;"></div>
+                </div>
+            </div>
         </div>
     </div>
+</div>
 
-    <script src="Scripts/user-dashboard.js?v=4"></script>
+<div id="manageModal" class="modal">
+    <div class="modal-content">
+        <h3 style="margin-top:0;">Manage <span id="modal-char-name" style="color:#007bff;"></span></h3>
+        <div id="action-buttons-container" style="display:flex; flex-direction:column; gap:10px; margin-top:15px;"></div>
+        <div id="action-result" style="margin-top:15px; text-align:center; font-weight:bold;"></div>
+        <button class="btn btn-danger" style="width:100%; margin-top:20px;" onclick="closeManageModal()">Close</button>
+    </div>
+</div>
+
+<div id="convertModal" class="modal">
+    <div class="modal-content">
+        <h3 style="margin-top:0;">Convert WebCredits</h3>
+        <div class="form-group">
+            <label>Convert Into:</label>
+            <select id="convert-type" onchange="calculateConversion()">
+                <option value="wcoinc">WCoinC (Rate: <span id="rate-wcoinc-disp">1</span>)</option>
+                <option value="wcoinp">WCoinP (Rate: <span id="rate-wcoinp-disp">1</span>)</option>
+                <option value="goblin">GoblinPoints (Rate: <span id="rate-goblin-disp">1</span>)</option>
+            </select>
+        </div>
+        <div class="form-group">
+            <label>WebCredits to Spend:</label>
+            <input type="number" id="convert-amount" min="1" value="0" oninput="calculateConversion()">
+        </div>
+        <p style="text-align:center; color:#ccc;">You will receive: <br><strong style="color:#28a745; font-size:1.5em;" id="receive-amount">0</strong> <span id="receive-type">WCoinC</span></p>
+        <div id="convert-message" style="text-align:center; margin-bottom:10px; font-weight:bold;"></div>
+        <button class="btn" style="width:100%; margin-bottom:10px;" onclick="submitConversion()">Confirm Conversion</button>
+        <button class="btn btn-danger" style="width:100%;" onclick="closeConvertModal()">Cancel</button>
+    </div>
+</div>
+
+<div id="passwordModal" class="modal">
+    <div class="modal-content">
+        <h3 style="margin-top:0;">Change Password</h3>
+        <div class="form-group"><label>Old Password:</label><input type="password" id="old-pass" style="width:100%; padding:8px; border-radius:4px;"></div>
+        <div class="form-group"><label>New Password:</label><input type="password" id="new-pass" style="width:100%; padding:8px; border-radius:4px;"></div>
+        <div class="form-group"><label>Confirm New:</label><input type="password" id="conf-pass" style="width:100%; padding:8px; border-radius:4px;"></div>
+        <div id="pwd-message" style="text-align:center; margin-bottom:10px; font-weight:bold;"></div>
+        <button class="btn" style="width:100%; margin-bottom:10px;" onclick="submitPasswordChange()">Change Password</button>
+        <button class="btn btn-danger" style="width:100%;" onclick="closePasswordModal()">Cancel</button>
+    </div>
+</div>
+
+<script src="Scripts/user-dashboard.js"></script>
 </body>
 </html>

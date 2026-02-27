@@ -28,7 +28,6 @@ async function checkUserSession() {
                 loginBtn.style.borderColor = '#d4a875';
                 loginBtn.style.color = '#000';
                 
-                // Clone to remove old listeners and add redirect
                 const newBtn = loginBtn.cloneNode(true);
                 newBtn.onclick = function(e) { 
                     e.preventDefault();
@@ -68,19 +67,23 @@ async function loadAllData() {
         if (link1) { link1.textContent = settings.download_link_1.label; link1.href = settings.download_link_1.url; }
         if (link2) { link2.textContent = settings.download_link_2.label; link2.href = settings.download_link_2.url; }
 
-        // --- VISIBILITY LOGIC (NEW) ---
+        // --- ONLINE COUNT TOGGLE ---
+        const showOnline = settings.show_online_count !== false; // Default to true
+        document.querySelectorAll('.online-text').forEach(el => {
+            el.style.display = showOnline ? 'block' : 'none';
+        });
+
+        // --- VISIBILITY LOGIC ---
         const col1 = document.getElementById('col-server-1');
         const col2 = document.getElementById('col-server-2');
         const separator = document.getElementById('server-separator');
 
-        // Check visibility settings (Default to true if missing)
-        const showMid = settings.mid_rate_server.visible !== false; // true if undefined
+        const showMid = settings.mid_rate_server.visible !== false;
         const showHard = settings.hard_rate_server.visible !== false;
 
         if (col1) col1.style.display = showMid ? 'block' : 'none';
         if (col2) col2.style.display = showHard ? 'block' : 'none';
 
-        // Hide separator if only one (or zero) servers are showing
         if (separator) {
             separator.style.display = (showMid && showHard) ? 'block' : 'none';
         }
@@ -92,7 +95,6 @@ async function loadAllData() {
         if (hardNameEl) hardNameEl.textContent = settings.hard_rate_server.name;
 
         // 2. DYNAMIC REGISTRATION DROPDOWN
-        // Only show options if the server is Visible
         const regSelect = document.getElementById('reg-server');
         const loginSelect = document.getElementById('login-server');
         
@@ -123,16 +125,20 @@ async function loadAllData() {
 
         // --- FETCH STATUS & COUNTS ---
         if (showMid) {
-            fetch(`Configuration/api.php?server=mid&v=${timestamp}`).then(r=>r.json()).then(d=>{ 
-                const el = document.getElementById('mid-rate-count'); if(el) el.textContent = d.online;
-            });
+            if (showOnline) { 
+                fetch(`Configuration/api.php?server=mid&v=${timestamp}`).then(r=>r.json()).then(d=>{ 
+                    const el = document.getElementById('mid-rate-count'); if(el) el.textContent = d.online;
+                });
+            }
             loadEmblem('mid', 'mid-rate-owner-name', 'mid-rate-emblem', timestamp);
         }
 
         if (showHard) {
-            fetch(`Configuration/api.php?server=hard&v=${timestamp}`).then(r=>r.json()).then(d=>{ 
-                const el = document.getElementById('hard-rate-count'); if(el) el.textContent = d.online;
-            });
+            if (showOnline) { 
+                fetch(`Configuration/api.php?server=hard&v=${timestamp}`).then(r=>r.json()).then(d=>{ 
+                    const el = document.getElementById('hard-rate-count'); if(el) el.textContent = d.online;
+                });
+            }
             loadEmblem('hard', 'hard-rate-owner-name', 'hard-rate-emblem', timestamp);
         }
 

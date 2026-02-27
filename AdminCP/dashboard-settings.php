@@ -3,6 +3,7 @@ $settings = json_decode(file_get_contents('../Configuration/settings.json'), tru
 // Defaults
 $mid_visible = $settings['mid_rate_server']['visible'] ?? true;
 $hard_visible = $settings['hard_rate_server']['visible'] ?? true;
+$show_online = $settings['show_online_count'] ?? true;
 ?>
 <form action="actions/manage-settings.php" method="POST" enctype="multipart/form-data">
     <input type="hidden" name="action" value="save_site_settings">
@@ -15,6 +16,15 @@ $hard_visible = $settings['hard_rate_server']['visible'] ?? true;
     <label for="favicon_file" style="margin-top:15px;">Website Logo (Favicon):</label>
     <input type="file" id="favicon_file" name="favicon_file" accept="image/x-icon, image/png, image/jpeg">
     <p>Current Favicon: <img src="../<?php echo htmlspecialchars($settings['favicon_url']); ?>?v=<?php echo time(); ?>" alt="favicon" style="vertical-align:middle; width:32px; height:32px;"></p>
+
+    <label style="margin-top: 15px;">Show Player Online Count:</label>
+    <div style="margin-bottom:15px;">
+        <input type="radio" id="show_online_on" name="show_online" value="1" <?php echo $show_online ? 'checked' : ''; ?>>
+        <label for="show_online_on" style="font-weight:normal; margin-right:15px;">Show</label>
+        
+        <input type="radio" id="show_online_off" name="show_online" value="0" <?php echo !$show_online ? 'checked' : ''; ?>>
+        <label for="show_online_off" style="font-weight:normal;">Hide</label>
+    </div>
     
     <hr style="margin: 20px 0;">
 

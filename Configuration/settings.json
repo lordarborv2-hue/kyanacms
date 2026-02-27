@@ -1,5 +1,5 @@
 {
-    "website_title": "Kira MU Online",
+    "website_title": "Kyana CMS",
     "favicon_url": "uploads\/favicon-68e3b0741f892.png",
     "security": {
         "session_timeout_minutes": 30,
@@ -10,7 +10,8 @@
         "enable_reset_stats": true,
         "enable_clear_pk": true,
         "enable_reset_master": true,
-        "enable_unstuck": true
+        "enable_unstuck": true,
+        "enable_webshop": true
     },
     "database": {
         "mid_rate": {
@@ -20,10 +21,10 @@
             "pass_encrypted": "LzdZOERiVnFrRmtOTHJxMVhwejBvZlp0TnZHM2FzWjdxT2R2QkU3S1pUcz06Okjk5pf6Hl0vv83ClTENjEI="
         },
         "hard_rate": {
-            "host": "127.0.0.1",
-            "name": "MuOnlineEly",
+            "host": "139.99.24.220",
+            "name": "MuOnlineMid",
             "user": "sa",
-            "pass_encrypted": "ZlJaSTBNTGZxdGQ0eDA1amxFYklYbHhycmZOMG5Uams0V3dHMGpha2VNQT06OjwAM4qiMgkQJCCV6O1SrSU="
+            "pass_encrypted": "VEtnWjA5OEdRajk2a053VFhRMERjeGRwVVorY05RZmdPcTZWU3B5M3hLST06OptYPxZk1iO2xvWlYpEpY2E="
         }
     },
     "download_link_1": {
@@ -34,17 +35,28 @@
         "label": "Mega",
         "url": "https:\/\/mega.nz\/file\/Z8c1DRZa#hWrmkbiZZGZW31x1_sQZSwSJLOW-18vmeEH7NM3bgvs"
     },
-    "wallpaper_url": "uploads\/wallpaper-68e3afd1997d0.png",
+    "wallpaper_url": "uploads\/wallpaper-69a1228f9579b.jpg",
     "mid_rate_server": {
-        "name": "Mid Rate",
+        "name": "Server 1",
         "address": "127.0.0.1",
         "port": 55902,
         "visible": true
     },
     "hard_rate_server": {
-        "name": "Hard Rate",
-        "address": "127.0.0.1",
-        "port": 55920,
-        "visible": false
-    }
+        "name": "Server 2",
+        "address": "139.99.24.220",
+        "port": 55902,
+        "visible": true
+    },
+    "conversion_rates": {
+        "wcoinc": 30,
+        "wcoinp": 1,
+        "goblin": 1
+    },
+    "webshop": {
+        "price_level": 10,
+        "price_exc": 50,
+        "price_luck_skill": 25
+    },
+    "show_online_count": true
 }
