@@ -148,5 +148,13 @@
             "enabled": true,
             "ratio": 100
         }
+    },
+    "paymongo": {
+        "mid_rate": {
+            "enabled": true,
+            "public_key": "pk_live_WyLqUEQHCzarLZUzwvvfqF89",
+            "secret_key": "sk_live_qM9PHiAWuQ1p6oT6j8AYXWmw",
+            "rate": 1
+        }
     }
 }

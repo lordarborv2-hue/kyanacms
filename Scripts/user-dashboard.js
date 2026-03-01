@@ -14,6 +14,7 @@ let availableShopItems = [];
 
 // Donation Globals
 let paypalConfig = { enabled: false, rate: 100, currency: 'USD' };
+let paymongoConfig = { enabled: false, rate: 100, public_key: '' }; // FIXED: Added PayMongo Global
 let paypalScriptLoaded = false;
 window.qrRatio = 100; // Global QR Ph Ratio
 
@@ -64,40 +65,51 @@ async function loadUserData() {
             if (webshopTabBtn) webshopTabBtn.style.display = 'inline-block';
         }
 
-        // Setup Donation Tab (PayPal & QR Ph)
+        // Setup Donation Tab (PayPal, QR Ph, & PayMongo)
         paypalConfig = data.paypal || { enabled: false, rate: 100, currency: 'USD' };
+        paymongoConfig = data.paymongo || { enabled: false, rate: 100, public_key: '' }; // FIXED: Load PayMongo data
         const qrConfig = data.qr_ph || { enabled: false, ratio: 100 };
         window.qrRatio = qrConfig.ratio;
 
         const donateTabBtn = document.getElementById('tab-btn-donate');
         const paypalContainer = document.getElementById('paypal-container');
         const qrContainer = document.getElementById('qr-ph-container');
+        const paymongoContainer = document.getElementById('paymongo-container'); // FIXED: Get PayMongo HTML
         
-        // Handle PayPal Visibility
+        // --- Handle PayMongo Visibility ---
+        if (paymongoConfig.enabled && paymongoConfig.public_key) {
+            if (paymongoContainer) paymongoContainer.style.display = 'block';
+            const rateDisp = document.getElementById('paymongo-rate-disp');
+            if (rateDisp) rateDisp.textContent = paymongoConfig.rate;
+        } else {
+            if (paymongoContainer) paymongoContainer.style.display = 'none';
+        }
+
+        // --- Handle PayPal Visibility ---
         if (paypalConfig.enabled && paypalConfig.client_id) {
             if (paypalContainer) paypalContainer.style.display = 'block';
             document.getElementById('paypal-currency-label').textContent = paypalConfig.currency;
-            calculateDonation(); 
+            if (typeof calculateDonation === 'function') calculateDonation(); 
             
             if (!paypalScriptLoaded) {
                 const script = document.createElement('script');
                 script.src = `https://www.paypal.com/sdk/js?client-id=${paypalConfig.client_id}&currency=${paypalConfig.currency}`;
-                script.onload = () => { renderPayPalButtons(); paypalScriptLoaded = true; };
+                script.onload = () => { if(typeof renderPayPalButtons === 'function') renderPayPalButtons(); paypalScriptLoaded = true; };
                 document.body.appendChild(script);
             }
         } else {
             if (paypalContainer) paypalContainer.style.display = 'none';
         }
 
-        // Handle QR Ph Visibility
+        // --- Handle QR Ph Visibility ---
         if (qrConfig.enabled) {
             if (qrContainer) qrContainer.style.display = 'block';
         } else {
             if (qrContainer) qrContainer.style.display = 'none';
         }
 
-        // Show/Hide Main Donation Tab
-        if (!qrConfig.enabled && (!paypalConfig.enabled || !paypalConfig.client_id)) {
+        // Show/Hide Main Donation Tab (Now checks all 3 payment methods)
+        if (!qrConfig.enabled && (!paypalConfig.enabled || !paypalConfig.client_id) && (!paymongoConfig.enabled || !paymongoConfig.public_key)) {
             if (donateTabBtn) donateTabBtn.style.display = 'none';
         } else {
             if (donateTabBtn) donateTabBtn.style.display = 'inline-block';
@@ -437,6 +449,77 @@ async function buyWebshopItem() {
         }
     } catch (e) {
         msgDiv.innerHTML = '<span style="color:#dc3545">❌ System Error. Check server connection.</span>';
+    }
+}
+
+// --- PAYMONGO DONATION SYSTEM ---
+function calculatePayMongo() {
+    const credits = parseInt(document.getElementById('paymongo-credits').value) || 0;
+    const rate = paymongoConfig.rate || 100;
+    
+    // Calculate the PHP price
+    const pricePhp = (credits / rate).toFixed(2);
+    document.getElementById('paymongo-price-php').textContent = pricePhp;
+    
+    // Calculate minimum credits required to hit the 1 PHP limit
+    const minCredits = rate * 1;
+    const minMsg = document.getElementById('paymongo-min-msg');
+    if (minMsg) minMsg.textContent = `Minimum purchase: ${minCredits} Credits (1 PHP)`;
+}
+
+async function payWithPayMongo() {
+    const credits = parseInt(document.getElementById('paymongo-credits').value) || 0;
+    const rate = paymongoConfig.rate || 100;
+    const pricePhp = credits / rate;
+    const msgDiv = document.getElementById('paymongo-message');
+
+    if (credits <= 0) return;
+
+    // Enforce PayMongo's strict 100 PHP minimum
+    if (pricePhp < 100) {
+        const minCredits = rate * 100;
+        msgDiv.innerHTML = `<span style="color:#dc3545;">❌ Minimum transaction is 100 PHP (${minCredits} Credits).</span>`;
+        return;
+    }
+
+    msgDiv.innerHTML = '<span style="color:#f1c40f;">⏳ Generating Secure Payment Link...</span>';
+
+    // TRICK TO BYPASS POPUP BLOCKERS: Open a blank tab IMMEDIATELY when they click
+    let paymentWindow = window.open('', '_blank');
+    if (paymentWindow) {
+        paymentWindow.document.write("<h2 style='font-family:sans-serif; text-align:center; margin-top:50px;'>Connecting to PayMongo Secure Checkout... Please wait.</h2>");
+    }
+
+    const formData = new FormData();
+    formData.append('credits', credits);
+	formData.append('account', document.getElementById('user-name').textContent.trim());
+
+    try {
+        const response = await fetch('Configuration/paymongo-create-link.php', { method: 'POST', body: formData });
+        const responseText = await response.text();
+        
+        try {
+            const result = JSON.parse(responseText);
+            if (result.success) {
+                msgDiv.innerHTML = `<span style="color:#28a745;">✅ Checkout opened in a new tab! <br><a href="${result.checkout_url}" target="_blank" style="color:#007bff; text-decoration:underline;">Click here if the new tab didn't open.</a></span>`;
+                
+                // Forward the blank tab to the real PayMongo URL
+                if (paymentWindow) {
+                    paymentWindow.location.href = result.checkout_url;
+                }
+            } else {
+                if (paymentWindow) paymentWindow.close(); // Close the blank tab on error
+                msgDiv.innerHTML = `<span style="color:#dc3545;">❌ ${result.message}</span>`;
+            }
+        } catch (parseErr) {
+            if (paymentWindow) paymentWindow.close();
+            console.error("Server returned non-JSON response:", responseText);
+            msgDiv.innerHTML = `<span style="color:#dc3545;">❌ Server Error. Check console (F12) for details.</span>`;
+        }
+    } catch (e) {
+        if (paymentWindow) paymentWindow.close();
+        console.error("Fetch failed:", e);
+        msgDiv.innerHTML = '<span style="color:#dc3545;">❌ Error connecting to server. File might be missing.</span>';
     }
 }
 

@@ -136,8 +136,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
             if (!isset($settings['paymongo'])) $settings['paymongo'] = [];
             $settings['paymongo'][$server_key] = [
-                'enabled' => isset($_POST['paymongo_enabled']), 'public_key' => trim($_POST['paymongo_public']),
-                'secret_key' => trim($_POST['paymongo_secret']), 'rate' => (int)$_POST['paymongo_rate']
+                'enabled' => isset($_POST['paymongo_enabled']), 
+                'public_key' => trim($_POST['paymongo_public']),
+                'secret_key' => trim($_POST['paymongo_secret']), 
+                'rate' => (int)$_POST['paymongo_rate']
             ];
             $page = 'donations';
             break;

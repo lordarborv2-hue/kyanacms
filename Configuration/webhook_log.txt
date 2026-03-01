@@ -1,0 +1,24 @@
+
+
+[2026-03-01 09:23:41] ==== NEW WEBHOOK HIT ====
+Request Method: GET
+Raw Payload: EMPTY (Probably a browser visit or blank ping)
+Result: Rejected (Invalid or missing event type).
+
+
+[2026-03-01 09:31:59] ==== NEW WEBHOOK HIT ====
+Request Method: POST
+Raw Payload: {"data":{"id":"evt_JNUXFC9pDvT1kMAkUHtiHP3F","type":"event","attributes":{"type":"link.payment.paid","livemode":false,"data":{"id":"link_q92vH6zd2QCdxH6v9DDgTMx7","type":"link","attributes":{"amount":10000,"archived":false,"currency":"PHP","description":"10000 WebCredits for ","livemode":false,"fee":250,"remarks":"ACCOUNT:|CREDITS:10000|SERVER:mid_rate","status":"paid","tax_amount":null,"taxes":[],"checkout_url":"https://pm.link/org-1Q4dDtJU4CdmMhVt6TDxfmiT/test/wStcqaM","reference_number":"wStcqaM","created_at":1772353901,"updated_at":1772353901,"payments":[{"data":{"id":"pay_BgUsjDfTaSMXZertWhmApQyd","type":"payment","attributes":{"access_url":null,"amount":10000,"balance_transaction_id":"bal_txn_BiKJHtBYPPCmjyoVg3aFFYDU","billing":{"address":{"city":"Taguig","country":"PH","line1":"12th floor The Trade and Financial Tower u1206","line2":"32nd street and 7th Avenue","postal_code":"1630","state":"Bonifacio Global City"},"email":"fittail08@gmail.com","name":"Kim Azer Gulifardo","phone":"91156418433"},"currency":"PHP","description":"10000 WebCredits for ","digital_withholding_vat_amount":0,"disputed":false,"external_reference_number":"wStcqaM","fee":250,"instant_settlement":null,"livemode":false,"net_amount":9750,"origin":"links","payment_intent_id":null,"payout":null,"source":{"id":"src_RdmEaBqEVhf124oGH6Vmcomh","type":"gcash","provider":{"id":null},"provider_id":null},"statement_descriptor":"KiraMU","status":"paid","tax_amount":null,"metadata":{"pm_reference_number":"wStcqaM"},"promotion":null,"refunds":[],"taxes":[],"available_at":1772614800,"created_at":1772353918,"credited_at":1772672400,"paid_at":1772353918,"updated_at":1772353918}}}]}},"previous_data":{},"pending_webhooks":1,"created_at":1772353919,"updated_at":1772353919}}}
+Event Type: link.payment.paid
+Status: paid | Remarks: ACCOUNT:|CREDITS:10000|SERVER:mid_rate
+Regex did not match remarks. Check how remarks are formatted.
+
+
+[2026-03-01 09:37:21] ==== NEW WEBHOOK HIT ====
+Request Method: POST
+Raw Payload: {"data":{"id":"evt_VQkH1UghZpnVVMHDFtmpjP79","type":"event","attributes":{"type":"link.payment.paid","livemode":false,"data":{"id":"link_GPDHMbNLp5bXif7q7fmbxdFr","type":"link","attributes":{"amount":10000,"archived":false,"currency":"PHP","description":"10000 WebCredits for louismk","livemode":false,"fee":250,"remarks":"ACCOUNT:louismk|CREDITS:10000|SERVER:mid_rate","status":"paid","tax_amount":null,"taxes":[],"checkout_url":"https://pm.link/org-1Q4dDtJU4CdmMhVt6TDxfmiT/test/N4w2sd8","reference_number":"N4w2sd8","created_at":1772354224,"updated_at":1772354224,"payments":[{"data":{"id":"pay_sKjPKeaNvHs4Rr5TYjxZ5Pxw","type":"payment","attributes":{"access_url":null,"amount":10000,"balance_transaction_id":"bal_txn_SJwxJCnk92VdDgKpG3aDJoie","billing":{"address":{"city":"Taguig","country":"PH","line1":"12th floor The Trade and Financial Tower u1206","line2":"32nd street and 7th Avenue","postal_code":"1630","state":"Bonifacio Global City"},"email":"fittail08@gmail.com","name":"Kim Azer Gulifardo","phone":"91156418433"},"currency":"PHP","description":"10000 WebCredits for louismk","digital_withholding_vat_amount":0,"disputed":false,"external_reference_number":"N4w2sd8","fee":250,"instant_settlement":null,"livemode":false,"net_amount":9750,"origin":"links","payment_intent_id":null,"payout":null,"source":{"id":"src_eHXxYWQEcAt9FBXfYXcKuDhT","type":"gcash","provider":{"id":null},"provider_id":null},"statement_descriptor":"KiraMU","status":"paid","tax_amount":null,"metadata":{"pm_reference_number":"N4w2sd8"},"promotion":null,"refunds":[],"taxes":[],"available_at":1772614800,"created_at":1772354241,"credited_at":1772672400,"paid_at":1772354241,"updated_at":1772354241}}}]}},"previous_data":{},"pending_webhooks":1,"created_at":1772354241,"updated_at":1772354241}}}
+Event Type: link.payment.paid
+Status: paid | Remarks: ACCOUNT:louismk|CREDITS:10000|SERVER:mid_rate
+Regex Matched! Acc: louismk, Credits: 10000, Server: mid_rate
+DB Connected successfully.
+Update query executed. Credits Added!

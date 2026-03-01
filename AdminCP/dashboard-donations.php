@@ -5,6 +5,7 @@ $server_label = ($server_key === 'mid_rate') ? ($settings['server_names']['mid_r
 
 $paypal = $settings['paypal'][$server_key] ?? ['enabled' => false, 'client_id' => '', 'secret' => '', 'rate' => 100, 'currency' => 'USD', 'mode' => 'sandbox'];
 $qr_ph = $settings['qr_ph'][$server_key] ?? ['enabled' => false, 'ratio' => 100];
+$paymongo = $settings['paymongo'][$server_key] ?? ['enabled' => false, 'public_key' => '', 'secret_key' => '', 'rate' => 100];
 $qr_image_name = "qr-ph-{$server_key}.png";
 ?>
 
@@ -78,6 +79,39 @@ $qr_image_name = "qr-ph-{$server_key}.png";
                 <input type="file" name="qr_image" accept="image/png" style="padding:5px;">
             </div>
             <button type="submit" class="button" style="width:100%; background: #6c757d; color: white;">Update QR Settings</button>
+        </form>
+    </div>
+	
+	<div style="background: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #ddd; grid-column: span 2;">
+        <h3 style="margin-top:0; color: #6f42c1;">PayMongo (Auto GCash, Maya, Cards)</h3>
+        <form action="actions/manage-settings.php" method="POST" style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
+            <input type="hidden" name="action" value="save_paymongo_settings">
+            
+            <div style="grid-column: span 2;">
+                <label style="display:block; font-weight: bold; cursor: pointer;">
+                    <input type="checkbox" name="paymongo_enabled" <?php echo ($paymongo['enabled'] ?? false) ? 'checked' : ''; ?> style="transform: scale(1.2); margin-right: 8px;"> Enable PayMongo Automated Donations
+                </label>
+            </div>
+
+            <div class="form-group" style="margin:0;">
+                <label style="display:block; font-weight:bold;">Public Key (pk_...):</label>
+                <input type="text" name="paymongo_public" value="<?php echo htmlspecialchars($paymongo['public_key'] ?? ''); ?>" style="width:100%; padding:8px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+
+            <div class="form-group" style="margin:0;">
+                <label style="display:block; font-weight:bold;">Secret Key (sk_...):</label>
+                <input type="password" name="paymongo_secret" value="<?php echo htmlspecialchars($paymongo['secret_key'] ?? ''); ?>" style="width:100%; padding:8px; border: 1px solid #ccc; border-radius: 4px;">
+            </div>
+
+            <div class="form-group" style="grid-column: span 2; margin:0;">
+                <label style="display:block; font-weight:bold;">Credits per 1 PHP (Rate):</label>
+                <input type="number" name="paymongo_rate" value="<?php echo $paymongo['rate'] ?? 100; ?>" step="1" style="width:100%; max-width: 200px; padding:8px; border: 1px solid #ccc; border-radius: 4px;">
+                <p style="font-size:0.85em; color:#666; margin-top:5px;">Example: If you set 100, 1 PHP = 100 WebCredits.</p>
+            </div>
+
+            <div style="grid-column: span 2;">
+                <button type="submit" class="button" style="width:100%; background: #6f42c1; color: white;">Save PayMongo Config</button>
+            </div>
         </form>
     </div>
 </div>
