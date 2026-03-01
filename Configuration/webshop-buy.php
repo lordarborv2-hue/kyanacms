@@ -146,18 +146,17 @@ if ($ancient == 3) $ancientByte = 0x06;
 if ($ancient == 4) $ancientByte = 0x0A; 
 $hex .= sprintf("%02X", $ancientByte); 
 
-$byte9 = ($itemType * 16) + ($itemIndex > 255 ? 128 : 0);
+// BYTE 9: Item Type, +256 ID Flag, AND 380 PvP Option
+$byte9 = ($itemType * 16) + ($itemIndex > 255 ? 128 : 0) + ($opt380 ? 8 : 0);
 $hex .= sprintf("%02X", $byte9); 
 
-// HARMONY & 380 BYTE (Byte 10) - SD BYPASS BUG FIXED HERE (+13)
+// BYTE 10: HARMONY ONLY (SD BYPASS BUG FIXED HERE)
 $byte10 = 0x00;
 if ($harmony > 0) { 
     // Bitwise shift the Harmony option index, and force Level 13 (0x0D)
     $byte10 = ($harmony << 4) | 0x0D; 
-} elseif ($opt380) { 
-    $byte10 = 0x08; 
 }
-$hex .= sprintf("%02X", $byte10); 
+$hex .= sprintf("%02X", $byte10);
 
 // Sockets (Bytes 11-15)
 for ($i = 1; $i <= 5; $i++) { $hex .= ($i <= $sockets) ? "FE" : "FF"; }

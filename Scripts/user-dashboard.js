@@ -70,6 +70,10 @@ async function loadUserData() {
         paymongoConfig = data.paymongo || { enabled: false, rate: 100, public_key: '' }; // FIXED: Load PayMongo data
         const qrConfig = data.qr_ph || { enabled: false, ratio: 100 };
         window.qrRatio = qrConfig.ratio;
+		const qrImg = document.getElementById('qr-ph-image');
+		if (qrImg && qrConfig.image_url) {
+			qrImg.src = qrConfig.image_url + '?t=' + Date.now();
+		}
 
         const donateTabBtn = document.getElementById('tab-btn-donate');
         const paypalContainer = document.getElementById('paypal-container');
@@ -789,6 +793,16 @@ function toggleLeftSidebar() {
     document.getElementById('sidebar-jewels').style.display = isClasses ? 'none' : 'block';
     document.getElementById('sidebar-classes').style.display = isClasses ? 'block' : 'none';
     document.getElementById('left-sidebar-title').textContent = isClasses ? 'Server Classes' : 'My Warehouse';
+}
+
+function openQRModal(src) {
+    const lightbox = document.getElementById('qr-lightbox');
+    document.getElementById('qr-lightbox-img').src = src;
+    lightbox.style.display = 'flex';
+}
+
+function closeQRModal() {
+    document.getElementById('qr-lightbox').style.display = 'none';
 }
 
 // --- LOGOUT LOGIC ---

@@ -6,7 +6,7 @@ $server_label = ($server_key === 'mid_rate') ? ($settings['server_names']['mid_r
 $paypal = $settings['paypal'][$server_key] ?? ['enabled' => false, 'client_id' => '', 'secret' => '', 'rate' => 100, 'currency' => 'USD', 'mode' => 'sandbox'];
 $qr_ph = $settings['qr_ph'][$server_key] ?? ['enabled' => false, 'ratio' => 100];
 $paymongo = $settings['paymongo'][$server_key] ?? ['enabled' => false, 'public_key' => '', 'secret_key' => '', 'rate' => 100];
-$qr_image_name = "qr-ph-{$server_key}.png";
+$qr_image_name = "uploads/qr-ph/{$server_key}.png";
 ?>
 
 <div style="background: #007bff; color: white; padding: 12px; border-radius: 5px; margin-bottom: 20px; text-align: center; font-size: 1.2em; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
@@ -71,9 +71,18 @@ $qr_image_name = "qr-ph-{$server_key}.png";
                 <input type="number" name="qr_ratio" value="<?php echo $qr_ph['ratio'] ?? 100; ?>" style="width:100%; padding:8px; border: 1px solid #ccc; border-radius: 4px;">
             </div>
             <div style="text-align:center; padding: 15px; background: #fff; border: 1px dashed #ccc; margin-bottom: 15px;">
-                <p style="margin:0; font-weight:bold;">QR Code Image:</p>
-                <img src="../<?php echo $qr_image_name; ?>?t=<?php echo time(); ?>" alt="QR Ph" style="width:120px; height:120px; margin-top:10px; border: 1px solid #ddd;">
-            </div>
+    <p style="margin:0; font-weight:bold;">QR Code Image 
+        <span style="font-size:0.8em; color:#666;">(<?php echo htmlspecialchars($server_label); ?>)</span>:
+    </p>
+    <img src="../uploads/qr-ph/<?php echo $server_key; ?>.png?t=<?php echo time(); ?>" 
+         alt="QR Ph" 
+         style="width:120px; height:120px; margin-top:10px; border: 1px solid #ddd;"
+         onerror="this.style.opacity='0.3'; this.title='No QR image uploaded yet for this server.'">
+    <p style="font-size:0.75em; color:#999; margin:5px 0 0 0;">
+        <?php echo htmlspecialchars($server_label); ?> — 
+        <?php echo file_exists('../uploads/qr-ph/' . $server_key . '.png') ? '<span style="color:green;">✔ Image found</span>' : '<span style="color:red;">✘ No image uploaded</span>'; ?>
+    </p>
+</div>
             <div class="form-group" style="margin-bottom:15px;">
                 <label style="display:block; font-weight:bold;">Upload New QR Code (PNG only):</label>
                 <input type="file" name="qr_image" accept="image/png" style="padding:5px;">

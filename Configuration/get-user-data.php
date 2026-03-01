@@ -111,7 +111,9 @@ echo json_encode([
     'features' => $settings['user_dashboard'][$server_key] ?? [],
     'rates' => $settings['conversion_rates'] ?? ['wcoinc' => 1, 'wcoinp' => 1, 'goblin' => 1],
     'paypal' => $paypal_config,
-    'qr_ph' => $qr_ph_config,
+    'qr_ph' => array_merge($qr_ph_config, [
+    'image_url' => 'uploads/qr-ph/' . $server_key . '.png'
+	]),
 	'paymongo' => $settings['paymongo'][$server_key] ?? ['enabled' => false, 'rate' => 100, 'public_key' => ''],
     'webcredits' => $webcredits,
     'wcoinc' => $wcoinc,

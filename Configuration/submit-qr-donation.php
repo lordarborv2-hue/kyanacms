@@ -32,7 +32,7 @@ if (move_uploaded_file($_FILES['proof']['tmp_name'], $targetFilePath)) {
     
     // 4. Database Connection (Ensure this matches your config)
     $settings = json_decode(file_get_contents('settings.json'), true);
-    $server_key = (isset($_SESSION['admin_server']) && $_SESSION['admin_server'] === 'hard') ? 'hard_rate' : 'mid_rate';
+    $server_key = (isset($_SESSION['user_server']) && $_SESSION['user_server'] === 'hard') ? 'hard_rate' : 'mid_rate';
     $db_config = $settings['database'][$server_key];
 
     function decrypt_pass($g, $k) { 

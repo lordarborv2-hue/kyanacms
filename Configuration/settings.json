@@ -17,10 +17,10 @@
         "hard_rate": {
             "enable_webshop": true,
             "enable_reset": false,
-            "enable_reset_stats": true,
-            "enable_clear_pk": true,
-            "enable_reset_master": true,
-            "enable_unstuck": true
+            "enable_reset_stats": false,
+            "enable_clear_pk": false,
+            "enable_reset_master": false,
+            "enable_unstuck": false
         }
     },
     "database": {
@@ -151,9 +151,9 @@
     },
     "paymongo": {
         "mid_rate": {
-            "enabled": true,
-            "public_key": "pk_live_WyLqUEQHCzarLZUzwvvfqF89",
-            "secret_key": "sk_live_qM9PHiAWuQ1p6oT6j8AYXWmw",
+            "enabled": false,
+            "public_key": "",
+            "secret_key": "",
             "rate": 1
         }
     }

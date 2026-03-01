@@ -165,7 +165,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             ];
 
             if (isset($_FILES['qr_image']) && $_FILES['qr_image']['error'] == 0) {
-                $targetPath = '../../qr-ph-' . $server_key . '.png'; 
+                $targetPath = '../../uploads/qr-ph/' . $server_key . '.png';
                 move_uploaded_file($_FILES['qr_image']['tmp_name'], $targetPath);
             }
             $page = 'donations';

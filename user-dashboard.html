@@ -79,12 +79,48 @@
         
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; }
         .modal-content { background: #222; max-width: 400px; margin: 100px auto; padding: 20px; border-radius: 5px; border: 1px solid #555; }
+
+        /* QR LIGHTBOX */
+        #qr-lightbox {
+            display: none;
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background: rgba(0,0,0,0.88);
+            z-index: 99999;
+            cursor: zoom-out;
+            justify-content: center;
+            align-items: center;
+        }
+        #qr-lightbox.open {
+            display: flex;
+        }
+        #qr-lightbox-img {
+            max-width: 90vw;
+            max-height: 90vh;
+            border-radius: 12px;
+            box-shadow: 0 0 60px rgba(255,255,255,0.15);
+            transition: transform 0.2s ease;
+        }
+        #qr-lightbox-close {
+            position: absolute;
+            top: 20px; right: 30px;
+            color: #fff;
+            font-size: 2.5em;
+            font-weight: bold;
+            cursor: pointer;
+            line-height: 1;
+            opacity: 0.7;
+            transition: opacity 0.2s;
+        }
+        #qr-lightbox-close:hover { opacity: 1; }
     </style>
 </head>
 <body>
 
 <div class="layout-wrapper">
     
+    <!-- LEFT SIDEBAR -->
     <div class="sidebar">
         <h3 class="sidebar-title" id="left-sidebar-title">My Warehouse</h3>
         
@@ -112,6 +148,7 @@
         </ul>
     </div>
 
+    <!-- MAIN DASHBOARD -->
     <div class="dashboard-container">
         <div class="header">
             <h2 style="margin:0;">Welcome, <span id="user-name" style="color: #007bff;">User</span></h2>
@@ -140,6 +177,7 @@
 
         <div id="loading-msg" style="text-align: center; padding: 20px; color: yellow;">Loading data...</div>
 
+        <!-- CHARACTERS TAB -->
         <div id="tab-characters" class="tab-content active">
             <div style="overflow-x: auto;">
                 <table id="char-table" style="display:none;">
@@ -154,6 +192,7 @@
             </div>
         </div>
 
+        <!-- WEBSHOP TAB -->
         <div id="tab-webshop" class="tab-content">
             <div class="shop-container">
                 <div class="shop-left">
@@ -235,9 +274,11 @@
             </div>
         </div>
 
+        <!-- DONATE TAB -->
         <div id="tab-donate" class="tab-content">
             <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
                 
+                <!-- PAYPAL -->
                 <div id="paypal-container" style="display:none; flex: 1; min-width: 250px; background: #222; padding: 20px; border-radius: 8px; border: 1px solid #444; text-align: center;">
                     <h3 style="color:#007bff; margin-top:0;">Donate via PayPal</h3>
                     <div class="form-group" style="text-align:left;">
@@ -252,12 +293,17 @@
                     <div id="paypal-message" style="margin-top: 10px; font-weight:bold;"></div>
                 </div>
 
+                <!-- QR PH -->
                 <div id="qr-ph-container" style="display:none; flex: 1; min-width: 250px; background: #222; padding: 20px; border-radius: 8px; border: 1px solid #444; text-align: center;">
                     <h3 style="color:#f1c40f; margin-top:0;">Donate via QR Ph</h3>
                     
                     <div style="background: #fff; padding: 10px; border-radius: 8px; display: inline-block; margin-bottom: 15px;">
-                        <img src="qr-ph.png" alt="QR Ph Code" style="width: 150px; height: 150px; border-radius: 4px;">
+                        <img id="qr-ph-image" src="" alt="QR Ph Code" 
+                             style="width: 150px; height: 150px; border-radius: 4px; cursor: zoom-in; display: block;"
+                             onclick="openQRModal(this.src)"
+                             title="Click to enlarge">
                     </div>
+                    <div style="font-size: 0.78em; color: #aaa; margin-top: -10px; margin-bottom: 12px;">🔍 Click image to enlarge</div>
 
                     <div class="form-group" style="text-align:left;">
                         <label>WebCredits You Want:</label>
@@ -283,34 +329,36 @@
                     <div id="qr-status-msg" style="margin-top: 10px; text-align: center; font-weight: bold;"></div>
                     <button class="btn" style="width:100%; margin-top:10px;" onclick="sendQRProof()">Submit Proof</button>
                 </div>
-				
-				<div id="paymongo-container" style="display: none; background: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #ddd; margin-bottom: 20px;">
-    <h3 style="margin-top: 0; color: #6f42c1;">Pay with GCash / Maya / Card</h3>
-    
-    <div style="display: flex; gap: 15px; margin-bottom: 15px; align-items: center;">
-        <div style="flex: 1;">
-            <label style="font-weight: bold; display: block;">WebCredits to Buy:</label>
-            <input type="number" id="paymongo-credits" placeholder="Enter amount..." style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc;" oninput="calculatePayMongo()">
-            <small style="color:#666; font-weight:bold;" id="paymongo-min-msg">Minimum transaction: 20 PHP</small>
-        </div>
-        <div style="flex: 1; text-align: center; background: #e9ecef; padding: 10px; border-radius: 4px;">
-            <span style="font-size: 0.9em; color: #555;">Rate: <span id="paymongo-rate-disp">100</span> Credits / 1 PHP</span><br>
-            <strong style="color: #28a745; font-size: 1.2em;">Total Cost: <span id="paymongo-price-php">0.00</span> PHP</strong>
-        </div>
-    </div>
 
-    <div id="paymongo-message" style="margin-bottom: 10px; font-weight: bold; text-align: center;"></div>
-    
-    <button class="button" style="width: 100%; background: #6f42c1; color: white; padding: 12px; font-size: 1.1em;" onclick="payWithPayMongo()">
-        Proceed to Secure Checkout
-    </button>
-</div>
+                <!-- PAYMONGO -->
+                <div id="paymongo-container" style="display: none; flex: 1; min-width: 250px; background: #222; padding: 20px; border-radius: 8px; border: 1px solid #444; margin-bottom: 20px;">
+                    <h3 style="margin-top: 0; color: #6f42c1;">Pay with GCash / Maya / Card</h3>
+                    
+                    <div style="display: flex; gap: 15px; margin-bottom: 15px; align-items: center;">
+                        <div style="flex: 1;">
+                            <label style="font-weight: bold; display: block;">WebCredits to Buy:</label>
+                            <input type="number" id="paymongo-credits" placeholder="Enter amount..." style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #555; background: #333; color: #fff; box-sizing: border-box;" oninput="calculatePayMongo()">
+                            <small style="color:#aaa; font-weight:bold;" id="paymongo-min-msg">Minimum transaction: 20 PHP</small>
+                        </div>
+                        <div style="flex: 1; text-align: center; background: #1a1a1a; padding: 10px; border-radius: 4px; border: 1px solid #444;">
+                            <span style="font-size: 0.9em; color: #aaa;">Rate: <span id="paymongo-rate-disp">100</span> Credits / 1 PHP</span><br>
+                            <strong style="color: #28a745; font-size: 1.2em;">Total Cost: <span id="paymongo-price-php">0.00</span> PHP</strong>
+                        </div>
+                    </div>
+
+                    <div id="paymongo-message" style="margin-bottom: 10px; font-weight: bold; text-align: center;"></div>
+                    
+                    <button class="btn" style="width: 100%; background: #6f42c1; color: white; padding: 12px; font-size: 1.1em;" onclick="payWithPayMongo()">
+                        Proceed to Secure Checkout
+                    </button>
+                </div>
                 
             </div>
         </div>
 
     </div>
 
+    <!-- RIGHT SIDEBAR -->
     <div class="sidebar">
         <h3 class="sidebar-title">Server Rankings</h3>
         <ul class="sidebar-list" id="sidebar-rankings">
@@ -318,8 +366,13 @@
         </ul>
     </div>
 
-</div> 
+</div>
 
+<!-- ============================================================ -->
+<!-- MODALS — all placed as direct children of body               -->
+<!-- ============================================================ -->
+
+<!-- Manage Character Modal -->
 <div id="manageModal" class="modal">
     <div class="modal-content">
         <h3 style="margin-top:0;">Manage <span id="modal-char-name" style="color:#007bff;"></span></h3>
@@ -329,6 +382,7 @@
     </div>
 </div>
 
+<!-- Convert Credits Modal -->
 <div id="convertModal" class="modal">
     <div class="modal-content">
         <h3 style="margin-top:0;">Convert WebCredits</h3>
@@ -351,6 +405,7 @@
     </div>
 </div>
 
+<!-- Change Password Modal -->
 <div id="passwordModal" class="modal">
     <div class="modal-content">
         <h3 style="margin-top:0;">Change Password</h3>
@@ -363,6 +418,36 @@
     </div>
 </div>
 
+<!-- QR LIGHTBOX — fixed overlay, direct child of body -->
+<div id="qr-lightbox" onclick="closeQRModal()">
+    <span id="qr-lightbox-close" onclick="closeQRModal()">&times;</span>
+    <img id="qr-lightbox-img" src="" alt="QR Code Full" onclick="event.stopPropagation()">
+</div>
+
 <script src="Scripts/user-dashboard.js"></script>
+<script>
+    function openQRModal(src) {
+        if (!src) return;
+        document.getElementById('qr-lightbox-img').src = src;
+        document.getElementById('qr-lightbox').classList.add('open');
+        document.body.style.overflow = 'hidden';
+    }
+
+    function closeQRModal() {
+        document.getElementById('qr-lightbox').classList.remove('open');
+        document.body.style.overflow = '';
+    }
+
+    // Close on Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') closeQRModal();
+    });
+
+    window.onclick = function(event) {
+        if (event.target == document.getElementById('manageModal')) closeManageModal();
+        if (event.target == document.getElementById('passwordModal')) closePasswordModal();
+        if (event.target == document.getElementById('convertModal')) closeConvertModal();
+    }
+</script>
 </body>
 </html>
