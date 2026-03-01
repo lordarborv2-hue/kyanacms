@@ -3,6 +3,12 @@
 require_once 'check-auth.php';
 require_once '../config.php'; // Load config for ADMIN_PASSWORD
 
+if (isset($_GET['logout'])) {
+    session_unset();
+    session_destroy();
+    header('Location: dashboard.php');
+    exit;
+}
 // --- CONFIGURATION ---
 // Use password from config.php, or fallback if missing
 $admin_password = defined('ADMIN_PASSWORD') ? ADMIN_PASSWORD : 'This1sDef4ult!1234';
@@ -13,6 +19,10 @@ if (isset($_POST['password'])) {
     if ($_POST['password'] === $admin_password) {
         $_SESSION['loggedin'] = true;
         $_SESSION['last_activity'] = time(); // Set initial activity time
+        // Set default server on first login
+        if (!isset($_SESSION['admin_server'])) {
+            $_SESSION['admin_server'] = 'mid';
+        }
         header('Location: dashboard.php'); // Redirect to remove POST data from URL
         exit;
     } else {
@@ -27,7 +37,6 @@ $page = $_GET['page'] ?? 'news';
 <html lang="en">
 <head>
     <meta charset="UTF-8"><title>Admin Dashboard</title>
-    <!-- Bootstrap for Summernote -->
     <link href="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/css/bootstrap.min.css" rel="stylesheet">
     <style>
         body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen-Sans, Ubuntu, Cantarell, "Helvetica Neue", sans-serif; background-color: #f0f2f5; margin: 20px; color: #333; }
@@ -72,15 +81,40 @@ $page = $_GET['page'] ?? 'news';
     <div class="container">
         <h1>Admin Dashboard</h1>
         <?php if ($is_logged_in): ?>
+            
+            <?php
+            // Setup dynamic names for the Global Switcher
+            $active_server = $_SESSION['admin_server'] ?? 'mid';
+            $settings = json_decode(file_get_contents('../Configuration/settings.json'), true);
+            $mid_name = $settings['server_names']['mid_rate'] ?? 'Server 1 (Mid)';
+            $hard_name = $settings['server_names']['hard_rate'] ?? 'Server 2 (Hard)';
+            ?>
+
+            <div style="background: #e9ecef; padding: 15px; border-radius: 8px; border: 1px solid #ced4da; margin-bottom: 25px; display: flex; justify-content: center; align-items: center; gap: 15px;">
+                <strong style="color: #333; font-size: 1.1em;">Currently Managing:</strong>
+                
+                <a href="actions/switch-server.php?server=mid" style="text-decoration: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; transition: 0.2s; <?php echo $active_server === 'mid' ? 'background: #007bff; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);' : 'background: #fff; color: #007bff; border: 1px solid #007bff;'; ?>">
+                    <?php echo htmlspecialchars($mid_name); ?>
+                </a>
+                
+                <a href="actions/switch-server.php?server=hard" style="text-decoration: none; padding: 10px 20px; border-radius: 5px; font-weight: bold; transition: 0.2s; <?php echo $active_server === 'hard' ? 'background: #28a745; color: white; box-shadow: 0 4px 6px rgba(0,0,0,0.1);' : 'background: #fff; color: #28a745; border: 1px solid #28a745;'; ?>">
+                    <?php echo htmlspecialchars($hard_name); ?>
+                </a>
+            </div>
+
             <div class="admin-menu">
                 <a href="?page=news" class="<?php echo $page === 'news' ? 'active' : ''; ?>">News</a>
                 <a href="?page=links" class="<?php echo $page === 'links' ? 'active' : ''; ?>">Links</a>
                 <a href="?page=wallpaper" class="<?php echo $page === 'wallpaper' ? 'active' : ''; ?>">Wallpaper</a>
                 <a href="?page=settings" class="<?php echo $page === 'settings' ? 'active' : ''; ?>">Settings</a>
-				<a href="?page=user_settings" class="<?php echo ($page == 'user_settings') ? 'active' : ''; ?>">User Dashboard</a>
+                <a href="?page=user_settings" class="<?php echo ($page == 'user_settings') ? 'active' : ''; ?>">User Dashboard</a>
+                <a href="?page=economy" class="<?php echo ($page == 'economy') ? 'active' : ''; ?>">Economy</a>
+                <a href="?page=donations" class="<?php echo ($page == 'donations') ? 'active' : ''; ?>">Donations</a>
+                <a href="?page=orders" class="<?php echo ($page == 'orders') ? 'active' : ''; ?>">Donation Orders</a> 
                 <a href="?page=database" class="<?php echo $page === 'database' ? 'active' : ''; ?>">Database</a>
                 <a href="?page=sqlcheck" class="<?php echo $page === 'sqlcheck' ? 'active' : ''; ?>">SQL Checker</a>
                 <a href="?page=security" class="<?php echo $page === 'security' ? 'active' : ''; ?>">Security</a>
+                
                 <a href="../index.html" target="_blank" rel="noopener noreferrer">View Site</a>
             </div>
 
@@ -94,8 +128,11 @@ $page = $_GET['page'] ?? 'news';
                 case 'settings': include 'dashboard-settings.php'; break;
                 case 'database': include 'dashboard-database.php'; break;
                 case 'sqlcheck': include 'dashboard-sql-check.php'; break;
+                case 'donations': include 'dashboard-donations.php'; break;
                 case 'security': include 'dashboard-security.php'; break;
-				case 'user_settings': include 'dashboard-user-settings.php'; break;
+                case 'orders': include 'dashboard-orders.php'; break;
+                case 'user_settings': include 'dashboard-user-settings.php'; break;
+                case 'economy': include 'dashboard-economy.php'; break;
                 default: echo "<p>Welcome to the Admin Dashboard.</p>"; break;
             }
             ?>
@@ -114,7 +151,6 @@ $page = $_GET['page'] ?? 'news';
     </div>
     
     <?php if ($is_logged_in && $page === 'news'): ?>
-    <!-- jQuery and Summernote for News Editor -->
     <script src="https://code.jquery.com/jquery-3.5.1.min.js"></script>
     <script src="https://stackpath.bootstrapcdn.com/bootstrap/3.4.1/js/bootstrap.min.js"></script>
     <link href="https://cdn.jsdelivr.net/npm/summernote@0.8.18/dist/summernote.min.css" rel="stylesheet">

@@ -1,253 +1,201 @@
 <?php
+$admin_srv = $_SESSION['admin_server'] ?? 'mid';
+$server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
 $settings = json_decode(file_get_contents('../Configuration/settings.json'), true);
+$server_label = ($server_key === 'mid_rate') ? ($settings['server_names']['mid_rate'] ?? 'Mid Rate') : ($settings['server_names']['hard_rate'] ?? 'Hard Rate');
 
-$u_dash = $settings['user_dashboard'] ?? [];
-$en_webshop = $u_dash['enable_webshop'] ?? true; 
-$en_reset = $u_dash['enable_reset'] ?? false;
-$en_stats = $u_dash['enable_reset_stats'] ?? false;
-$en_pk = $u_dash['enable_clear_pk'] ?? false;
-$en_master = $u_dash['enable_reset_master'] ?? false;
-$en_unstuck = $u_dash['enable_unstuck'] ?? false;
+$dash_settings = $settings['user_dashboard'][$server_key] ?? [
+    'enable_reset' => true, 'enable_reset_stats' => true, 'enable_clear_pk' => true,
+    'enable_reset_master' => true, 'enable_unstuck' => true, 'enable_webshop' => true
+];
 
-$rates = $settings['conversion_rates'] ?? ['wcoinc' => 1, 'wcoinp' => 1, 'goblin' => 1]; 
+$prices = $settings['webshop'][$server_key] ?? [
+    'price_level' => 10, 'price_exc' => 50, 'price_luck_skill' => 25, 
+    'price_380' => 100, 'price_harmony' => 100, 'price_socket' => 50, 'price_ancient' => 100
+];
 
-// Fallback logic for older settings
-$ws_mid = $settings['webshop']['mid_rate'] ?? $settings['webshop'] ?? [];
-$ws_hard = $settings['webshop']['hard_rate'] ?? $settings['webshop'] ?? [];
+$rates = $settings['conversion_rates'] ?? ['wcoinc' => 1, 'wcoinp' => 1, 'goblin' => 1];
 ?>
 
-<form action="actions/manage-settings.php" method="POST">
-    <input type="hidden" name="action" value="save_user_dashboard">
-    <h2>User Dashboard Settings</h2>
-    
-    <div style="background:#f9f9f9; padding:20px; border:1px solid #ddd; border-radius:5px;">
-        <div style="margin-bottom:15px;">
-            <label style="display:inline-block; width:200px; font-weight:bold; color:#007bff;">Webshop Tab:</label>
-            <input type="checkbox" id="en_webshop" name="enable_webshop" <?php echo $en_webshop ? 'checked' : ''; ?>>
-            <label for="en_webshop">Enable</label>
-        </div>
-        <hr>
-        <div style="margin-bottom:15px;">
-            <label style="display:inline-block; width:200px; font-weight:bold;">Reset Character:</label>
-            <input type="checkbox" id="en_reset" name="enable_reset" <?php echo $en_reset ? 'checked' : ''; ?>>
-            <label for="en_reset">Enable</label>
-        </div>
-        <hr>
-        <div style="margin-bottom:15px;">
-            <label style="display:inline-block; width:200px; font-weight:bold;">Reset Stats:</label>
-            <input type="checkbox" id="en_stats" name="enable_reset_stats" <?php echo $en_stats ? 'checked' : ''; ?>>
-            <label for="en_stats">Enable</label>
-        </div>
-        <hr>
-        <div style="margin-bottom:15px;">
-            <label style="display:inline-block; width:200px; font-weight:bold;">Clear PK:</label>
-            <input type="checkbox" id="en_pk" name="enable_clear_pk" <?php echo $en_pk ? 'checked' : ''; ?>>
-            <label for="en_pk">Enable</label>
-        </div>
-        <hr>
-        <div style="margin-bottom:15px;">
-            <label style="display:inline-block; width:200px; font-weight:bold;">Reset Master ML:</label>
-            <input type="checkbox" id="en_master" name="enable_reset_master" <?php echo $en_master ? 'checked' : ''; ?>>
-            <label for="en_master">Enable</label>
-        </div>
-        <hr>
-        <div style="margin-bottom:15px;">
-            <label style="display:inline-block; width:200px; font-weight:bold;">Unstuck Character:</label>
-            <input type="checkbox" id="en_unstuck" name="enable_unstuck" <?php echo $en_unstuck ? 'checked' : ''; ?>>
-            <label for="en_unstuck">Enable</label>
-        </div>
-        <hr>
-
-        <h3 style="margin-bottom: 5px;">Currency Conversion Rates</h3>
-        <div style="display:flex; gap:15px; margin-bottom:15px;">
-            <div style="flex:1;"><label>WCoinC per 1 Credit:</label><input type="number" name="rate_wcoinc" value="<?php echo (int)$rates['wcoinc']; ?>" min="1" required style="width:100%; padding:8px;"></div>
-            <div style="flex:1;"><label>WCoinP per 1 Credit:</label><input type="number" name="rate_wcoinp" value="<?php echo (int)$rates['wcoinp']; ?>" min="1" required style="width:100%; padding:8px;"></div>
-            <div style="flex:1;"><label>GoblinPoint per 1 Credit:</label><input type="number" name="rate_goblin" value="<?php echo (int)$rates['goblin']; ?>" min="1" required style="width:100%; padding:8px;"></div>
-        </div>
-    </div>
-    <button type="submit" class="button" style="margin-top:20px;">Save Dashboard Settings</button>
-</form>
-
-<hr style="border: 0; border-top: 2px solid #ddd; margin: 30px 0;">
-
-<div style="background:#fff; padding:20px; border:1px solid #ddd; border-radius: 8px; margin-bottom: 20px;">
-    <h3>Manage User WebCredits</h3>
-    <div style="margin-bottom: 15px; padding: 10px; background: #f8f9fa; border-left: 4px solid #007bff;">
-        <strong>Current User Balance:</strong> <span id="current-balance-display" style="color: #28a745; font-weight: bold;">Enter Username...</span>
-    </div>
-    <form action="actions/manage-settings.php" method="POST">
-        <input type="hidden" name="action" value="manage_user_credits">
-        <label style="font-weight:bold;">Select Server:</label>
-        <select name="server_select" id="server_select" onchange="lookupUserCredits(document.getElementById('target_user').value)" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:4px;">
-            <option value="mid">Server 1 (<?php echo htmlspecialchars($settings['mid_rate_server']['name']); ?>)</option>
-            <option value="hard">Server 2 (<?php echo htmlspecialchars($settings['hard_rate_server']['name']); ?>)</option>
-        </select>
-        <label style="font-weight:bold;">Account ID (Username):</label>
-        <input type="text" id="target_user" name="target_user" placeholder="Enter Account ID" required oninput="lookupUserCredits(this.value)" style="width:100%; padding:10px; margin-bottom:15px; border:1px solid #ccc; border-radius:4px;">
-        <div style="display: flex; gap: 20px;">
-            <div style="flex: 1;"><label style="font-weight:bold;">Action:</label><select name="operation" style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;"><option value="add">Add (+)</option><option value="minus">Subtract (-)</option><option value="set">Set Exact Amount</option></select></div>
-            <div style="flex: 1;"><label style="font-weight:bold;">Amount:</label><input type="number" name="credit_amount" value="0" min="0" required style="width:100%; padding:10px; border:1px solid #ccc; border-radius:4px;"></div>
-        </div>
-        <button type="submit" class="button" style="margin-top:20px; background:#28a745; width: 100%;">Update Credits</button>
-    </form>
+<div style="background: #007bff; color: white; padding: 12px; border-radius: 5px; margin-bottom: 20px; text-align: center; font-size: 1.2em; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+    Currently Editing: <?php echo htmlspecialchars($server_label); ?>
 </div>
 
-<hr style="border: 0; border-top: 2px solid #ddd; margin: 30px 0;">
+<h2 style="margin-bottom: 5px;">User Dashboard & Webshop Settings</h2>
 
-<div style="background:#fff; padding:20px; border:1px solid #ddd; border-radius: 8px;">
-    <h3>Upload Webshop Files</h3>
-    <p style="color:#666; margin-bottom: 15px;">Upload your Server's text files to automatically map out item sizes, Socket limits, 380 options, and Ancient items.</p>
+<?php if(isset($_GET['success'])): ?>
+    <div style="background:#d4edda; color:#155724; padding:10px; border-radius:4px; margin-bottom:15px; text-align:center; font-weight:bold;">
+        Settings Updated for <?php echo htmlspecialchars($server_label); ?>!
+    </div>
+<?php endif; ?>
+
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
     
-    <form action="actions/manage-settings.php" method="POST" enctype="multipart/form-data">
-        <input type="hidden" name="action" value="upload_item_txt">
-        
-        <label style="font-weight:bold;">Target Database:</label>
-        <select name="upload_target" style="width:100%; padding:8px; margin-bottom:15px; border:1px solid #ccc; border-radius:4px;">
-            <option value="both">Upload to BOTH Servers</option>
-            <option value="mid_rate">Server 1 Only</option>
-            <option value="hard_rate">Server 2 Only</option>
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+        <form action="actions/manage-settings.php" method="POST" style="background:#f9f9f9; padding:20px; border-radius:8px; border:1px solid #ddd; margin:0;">
+            <input type="hidden" name="action" value="save_user_settings">
+            <h3 style="margin-top:0;">Enable/Disable Features</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                <label><input type="checkbox" name="enable_reset" <?php echo !empty($dash_settings['enable_reset']) ? 'checked' : ''; ?>> Character Reset</label>
+                <label><input type="checkbox" name="enable_reset_stats" <?php echo !empty($dash_settings['enable_reset_stats']) ? 'checked' : ''; ?>> Reset Stats</label>
+                <label><input type="checkbox" name="enable_clear_pk" <?php echo !empty($dash_settings['enable_clear_pk']) ? 'checked' : ''; ?>> Clear PK</label>
+                <label><input type="checkbox" name="enable_reset_master" <?php echo !empty($dash_settings['enable_reset_master']) ? 'checked' : ''; ?>> Reset Master Level</label>
+                <label><input type="checkbox" name="enable_unstuck" <?php echo !empty($dash_settings['enable_unstuck']) ? 'checked' : ''; ?>> Unstuck</label>
+            </div>
+
+            <div style="margin-top: 15px; padding: 15px; background: #e8f5e9; border: 1px solid #c3e6cb; border-radius: 5px;">
+                <label style="color:#155724; font-weight:bold; font-size: 1.1em; cursor: pointer;">
+                    <input type="checkbox" name="enable_webshop" <?php echo !empty($dash_settings['enable_webshop']) ? 'checked' : ''; ?> style="transform: scale(1.2); margin-right: 10px;"> 
+                    Enable Webshop Tab
+                </label>
+            </div>
+
+            <hr style="border: 1px solid #ddd; margin: 15px 0;">
+            <h4 style="margin-top:0;">Credit Conversion Rates (Global)</h4>
+            <div style="display: flex; gap: 10px;">
+                <div><label>WCoinC:</label><input type="number" name="rate_wcoinc" value="<?php echo $rates['wcoinc']; ?>" style="width:100%;"></div>
+                <div><label>WCoinP:</label><input type="number" name="rate_wcoinp" value="<?php echo $rates['wcoinp']; ?>" style="width:100%;"></div>
+                <div><label>Goblin Point:</label><input type="number" name="rate_goblin" value="<?php echo $rates['goblin']; ?>" style="width:100%;"></div>
+            </div>
+
+            <button type="submit" class="button" style="width:100%; margin-top:15px;">Save Dashboard Features</button>
+        </form>
+
+        <form action="actions/manage-settings.php" method="POST" style="background:#f9f9f9; padding:20px; border-radius:8px; border:1px solid #ddd; margin:0;">
+            <input type="hidden" name="action" value="manage_user_credits">
+            <h3 style="margin-top:0;">Manage User Credits</h3>
+            <p style="font-size:0.9em; color:#666; margin-top:-5px;">Targeting: <strong><?php echo htmlspecialchars($server_label); ?></strong></p>
+
+            <div class="form-group" style="display: flex; gap: 10px; margin-bottom: 10px;">
+                <input type="text" id="target_user" name="target_user" placeholder="Account ID" required style="flex: 2;">
+                <button type="button" class="button edit" style="flex: 1;" onclick="lookupCredits()">Check</button>
+            </div>
+            
+            <div id="credit_result" style="margin-bottom:10px; font-weight:bold; color:#007bff;"></div>
+            
+            <div class="form-group" style="display: flex; gap: 10px;">
+                <select name="operation" style="flex: 1; padding: 10px; border-radius: 4px; border: 1px solid #ccc;">
+                    <option value="add">Add (+)</option>
+                    <option value="minus">Remove (-)</option>
+                    <option value="set">Set Exact (=)</option>
+                </select>
+                <input type="number" name="credit_amount" placeholder="Amount" required style="flex: 1;">
+            </div>
+
+            <button type="submit" class="button" style="width:100%; background:#28a745; margin-top:10px;">Update Credits</button>
+        </form>
+    </div>
+
+    <div style="display: flex; flex-direction: column; gap: 20px;">
+        <form action="actions/manage-settings.php" method="POST" enctype="multipart/form-data" style="background:#f9f9f9; padding:20px; border-radius:8px; border:1px solid #ddd; margin:0;">
+            <input type="hidden" name="action" value="upload_item_txt">
+            <h3 style="margin-top:0;">Upload Item.txt</h3>
+            
+            <div class="form-group" style="margin-bottom: 10px;">
+                <label>Target Database:</label>
+                <select name="upload_target" style="width:100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc;">
+                    <option value="<?php echo $server_key; ?>">Only <?php echo htmlspecialchars($server_label); ?></option>
+                    <option value="both">Both Servers (Sync)</option>
+                </select>
+            </div>
+
+            <div class="form-group" style="margin-bottom: 10px;">
+                <label>Item.txt (Required):</label>
+                <input type="file" name="item_txt" accept=".txt" required style="width: 100%;">
+            </div>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
+                <div class="form-group"><label>SocketItem.txt:</label><input type="file" name="socket_txt" accept=".txt" style="width: 100%;"></div>
+                <div class="form-group"><label>Item380.txt:</label><input type="file" name="380_txt" accept=".txt" style="width: 100%;"></div>
+                <div class="form-group"><label>AncientOption.txt:</label><input type="file" name="anc_opt_txt" accept=".txt" style="width: 100%;"></div>
+                <div class="form-group"><label>ItemSetType.txt:</label><input type="file" name="ancient_txt" accept=".txt" style="width: 100%;"></div>
+            </div>
+
+            <button type="submit" class="button" style="width:100%; background:#dc3545;">Upload & Overwrite DB</button>
+        </form>
+
+        <form action="actions/manage-settings.php" method="POST" style="background:#f9f9f9; padding:20px; border-radius:8px; border:1px solid #ddd; margin:0;">
+            <input type="hidden" name="action" value="save_webshop_prices">
+            <h3 style="margin-top:0;">Webshop Base Prices</h3>
+            
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; text-align: left;">
+                <div class="form-group"><label>Per Item Level (+1):</label><input type="number" name="price_level" value="<?php echo $prices['price_level']; ?>"></div>
+                <div class="form-group"><label>Per Excellent Option:</label><input type="number" name="price_exc" value="<?php echo $prices['price_exc']; ?>"></div>
+                <div class="form-group"><label>Luck or Skill Add:</label><input type="number" name="price_luck_skill" value="<?php echo $prices['price_luck_skill']; ?>"></div>
+                <div class="form-group"><label>380 PvP Option:</label><input type="number" name="price_380" value="<?php echo $prices['price_380']; ?>"></div>
+                <div class="form-group"><label>Harmony Option:</label><input type="number" name="price_harmony" value="<?php echo $prices['price_harmony']; ?>"></div>
+                <div class="form-group"><label>Per Empty Socket:</label><input type="number" name="price_socket" value="<?php echo $prices['price_socket']; ?>"></div>
+                <div class="form-group" style="grid-column: span 2;"><label>Ancient Option:</label><input type="number" name="price_ancient" value="<?php echo $prices['price_ancient']; ?>"></div>
+            </div>
+
+            <button type="submit" class="button" style="width:100%; margin-top:15px;">Save Prices for <?php echo htmlspecialchars($server_label); ?></button>
+        </form>
+    </div>
+</div>
+<div style="background: #f9f9f9; padding: 20px; border-radius: 8px; border: 1px solid #ddd; width: 100%; box-sizing: border-box; clear: both;">
+    <h3 style="margin-top:0;">Manage Individual Items (<?php echo htmlspecialchars($server_label); ?>)</h3>
+    <div class="form-group" style="max-width: 400px; margin-bottom: 15px;">
+        <label>Select Category:</label>
+        <select id="shop_category" onchange="loadCategoryItems()" style="width:100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc;">
+            <option value="">-- Select Category --</option>
+            <option value="0">Swords</option><option value="1">Axes</option><option value="2">Maces</option>
+            <option value="3">Spears</option><option value="4">Bows & Crossbows</option><option value="5">Staffs</option>
+            <option value="6">Shields</option><option value="7">Helms</option><option value="8">Armors</option>
+            <option value="9">Pants</option><option value="10">Gloves</option><option value="11">Boots</option>
+            <option value="12">Wings & Orbs</option><option value="13">Pets & Rings</option><option value="14">Pendants</option>
+            <option value="15">Scrolls</option>
         </select>
-
-        <div style="background:#f4f4f4; padding:15px; border-radius:5px; margin-bottom:15px; border:1px solid #ddd;">
-            <label style="font-weight:bold; color:#d9534f;">1. Item.txt (REQUIRED)</label>
-            <input type="file" name="item_txt" accept=".txt" required style="margin-bottom: 15px; display:block;">
-
-            <label style="font-weight:bold; color:#0275d8;">2. SocketItemType.txt</label>
-            <input type="file" name="socket_txt" accept=".txt" style="margin-bottom: 15px; display:block;">
-
-            <label style="font-weight:bold; color:#5cb85c;">3. 380ItemType.txt</label>
-            <input type="file" name="380_txt" accept=".txt" style="margin-bottom: 15px; display:block;">
-
-            <label style="font-weight:bold; color:#f0ad4e;">4. SetItemType.txt (Maps Ancient Items)</label>
-            <input type="file" name="ancient_txt" accept=".txt" style="margin-bottom: 15px; display:block;">
-
-            <label style="font-weight:bold; color:#8e44ad;">5. SetItemOption.txt (Grabs Ancient Names)</label>
-            <input type="file" name="anc_opt_txt" accept=".txt" style="display:block;">
-        </div>
-
-        <button type="submit" class="button" style="background:#007bff; width:100%;">Parse & Upload All Files</button>
-    </form>
-
-    <hr style="margin: 20px 0;">
-
-    <form action="actions/manage-settings.php" method="POST" style="margin-bottom: 20px;">
-        <input type="hidden" name="action" value="save_webshop_prices">
-        <h3 style="margin-bottom: 5px;">Webshop Global Pricing</h3>
-        
-        <h4 style="margin:10px 0 5px 0; color:#007bff;">Server 1 (<?php echo htmlspecialchars($settings['mid_rate_server']['name']); ?>) Multipliers</h4>
-        <div style="display:flex; gap:10px; flex-wrap: wrap; background:#f4f4f4; padding:10px; border-radius:4px; border:1px solid #ddd;">
-            <div style="flex:1; min-width: 100px;"><label>Per Level:</label><input type="number" name="mid_price_level" value="<?php echo $ws_mid['price_level'] ?? 10; ?>" required></div>
-            <div style="flex:1; min-width: 100px;"><label>Per Exc:</label><input type="number" name="mid_price_exc" value="<?php echo $ws_mid['price_exc'] ?? 50; ?>" required></div>
-            <div style="flex:1; min-width: 100px;"><label>Luck/Skill:</label><input type="number" name="mid_price_luck_skill" value="<?php echo $ws_mid['price_luck_skill'] ?? 25; ?>" required></div>
-            <div style="flex:1; min-width: 100px;"><label>380 Opt:</label><input type="number" name="mid_price_380" value="<?php echo $ws_mid['price_380'] ?? 100; ?>" required></div>
-            <div style="flex:1; min-width: 100px;"><label>Harmony:</label><input type="number" name="mid_price_harmony" value="<?php echo $ws_mid['price_harmony'] ?? 100; ?>" required></div>
-            <div style="flex:1; min-width: 100px;"><label>Per Socket:</label><input type="number" name="mid_price_socket" value="<?php echo $ws_mid['price_socket'] ?? 50; ?>" required></div>
-            <div style="flex:1; min-width: 100px;"><label style="color:#28a745;">Ancient:</label><input type="number" name="mid_price_ancient" value="<?php echo $ws_mid['price_ancient'] ?? 100; ?>" required></div>
-        </div>
-
-        <h4 style="margin:15px 0 5px 0; color:#dc3545;">Server 2 (<?php echo htmlspecialchars($settings['hard_rate_server']['name']); ?>) Multipliers</h4>
-        <div style="display:flex; gap:10px; flex-wrap: wrap; background:#f4f4f4; padding:10px; border-radius:4px; border:1px solid #ddd;">
-            <div style="flex:1; min-width: 100px;"><label>Per Level:</label><input type="number" name="hard_price_level" value="<?php echo $ws_hard['price_level'] ?? 10; ?>" required></div>
-            <div style="flex:1; min-width: 100px;"><label>Per Exc:</label><input type="number" name="hard_price_exc" value="<?php echo $ws_hard['price_exc'] ?? 50; ?>" required></div>
-            <div style="flex:1; min-width: 100px;"><label>Luck/Skill:</label><input type="number" name="hard_price_luck_skill" value="<?php echo $ws_hard['price_luck_skill'] ?? 25; ?>" required></div>
-            <div style="flex:1; min-width: 100px;"><label>380 Opt:</label><input type="number" name="hard_price_380" value="<?php echo $ws_hard['price_380'] ?? 100; ?>" required></div>
-            <div style="flex:1; min-width: 100px;"><label>Harmony:</label><input type="number" name="hard_price_harmony" value="<?php echo $ws_hard['price_harmony'] ?? 100; ?>" required></div>
-            <div style="flex:1; min-width: 100px;"><label>Per Socket:</label><input type="number" name="hard_price_socket" value="<?php echo $ws_hard['price_socket'] ?? 50; ?>" required></div>
-            <div style="flex:1; min-width: 100px;"><label style="color:#28a745;">Ancient:</label><input type="number" name="hard_price_ancient" value="<?php echo $ws_hard['price_ancient'] ?? 100; ?>" required></div>
-        </div>
-
-        <button type="submit" class="button" style="margin-top:15px; background:#28a745;">Save All Pricing</button>
-    </form>
-
-    <hr style="margin: 20px 0;">
-
-    <h3 style="margin-top: 20px;">Manage Specific Items (Base Price & Limits)</h3>
-    <div style="display: flex; gap: 10px; margin-bottom: 15px;">
-        <div style="flex: 1;">
-            <label style="font-weight:bold;">Select Target Server:</label>
-            <select id="admin-item-server" onchange="loadAdminCategory()" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc;">
-                <option value="mid_rate">Server 1 (<?php echo htmlspecialchars($settings['mid_rate_server']['name']); ?>)</option>
-                <option value="hard_rate">Server 2 (<?php echo htmlspecialchars($settings['hard_rate_server']['name']); ?>)</option>
-            </select>
-        </div>
-        <div style="flex: 1;">
-            <label style="font-weight:bold;">Select Item Category:</label>
-            <select id="admin-category-select" onchange="loadAdminCategory()" style="width: 100%; padding: 10px; border-radius: 4px; border: 1px solid #ccc;">
-                <option value="">-- Select Category --</option>
-                <option value="0">0 - Swords</option>
-                <option value="1">1 - Axes</option>
-                <option value="2">2 - Maces & Scepters</option>
-                <option value="3">3 - Spears</option>
-                <option value="4">4 - Bows & Crossbows</option>
-                <option value="5">5 - Staffs</option>
-                <option value="6">6 - Shields</option>
-                <option value="7">7 - Helms</option>
-                <option value="8">8 - Armors</option>
-                <option value="9">9 - Pants</option>
-                <option value="10">10 - Gloves</option>
-                <option value="11">11 - Boots</option>
-                <option value="12">12 - Wings, Orbs, Seeds</option>
-                <option value="13">13 - Pets, Rings, Tickets</option>
-                <option value="14">14 - Pendants & Jewels</option>
-                <option value="15">15 - Scrolls & Spells</option>
-            </select>
-        </div>
     </div>
     
-    <div id="admin-item-results" style="max-height: 500px; overflow-y: auto; background: #f9f9f9; border: 1px solid #ccc; padding: 10px; display: none;"></div>
+    <div id="item_list_container" style="overflow-x: auto; width: 100%;">
+        <p style="color:#666;">Select a category above to view and edit items.</p>
+    </div>
 </div>
 
 <script>
-let lookupTimeout;
-function lookupUserCredits(username) {
-    clearTimeout(lookupTimeout);
-    const display = document.getElementById('current-balance-display');
-    const server = document.getElementById('server_select').value; 
+async function lookupCredits() {
+    const user = document.getElementById('target_user').value;
+    const resDiv = document.getElementById('credit_result');
+    if (!user) { resDiv.textContent = "Please enter an Account ID"; return; }
     
-    if (username.length < 3) {
-        display.textContent = "Enter Username...";
-        display.style.color = "#28a745";
-        return;
+    resDiv.innerHTML = "Looking up...";
+    try {
+        // Added Cache-Buster Timestamp
+        const response = await fetch(`actions/manage-settings.php?action=lookup_credits&user=${user}&t=${new Date().getTime()}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            resDiv.innerHTML = `Current Credits for ${user}: <span style="color:#28a745; font-size:1.2em;">${data.credits}</span>`;
+        } else {
+            resDiv.innerHTML = `<span style="color:red;">Account not found on this server.</span>`;
+        }
+    } catch (e) {
+        resDiv.innerHTML = "Error connecting to server.";
     }
-    display.textContent = "Searching...";
-    display.style.color = "#666";
-    
-    lookupTimeout = setTimeout(() => {
-        fetch(`actions/manage-settings.php?action=lookup_credits&server=${server}&user=${encodeURIComponent(username)}`)
-            .then(response => response.json())
-            .then(data => {
-                if(data.success) {
-                    display.textContent = data.credits + " Credits";
-                    display.style.color = "#28a745";
-                } else {
-                    display.textContent = "0 Credits (Not Found)";
-                    display.style.color = "#dc3545";
-                }
-            }).catch(() => { display.textContent = "Error searching."; display.style.color = "#dc3545"; });
-    }, 500);
 }
 
-function loadAdminCategory() {
-    const server = document.getElementById('admin-item-server').value;
-    const cat = document.getElementById('admin-category-select').value;
-    const resultsDiv = document.getElementById('admin-item-results');
+function loadCategoryItems() {
+    const cat = document.getElementById('shop_category').value;
+    const container = document.getElementById('item_list_container');
     
-    if (cat === "") { resultsDiv.style.display = 'none'; return; }
+    if (cat === '') { container.innerHTML = ''; return; }
+    container.innerHTML = 'Loading items...';
     
-    resultsDiv.style.display = 'block';
-    resultsDiv.innerHTML = 'Loading category items from ' + server + '...';
-    
-    fetch(`actions/manage-settings.php?action=load_category_items&server=${server}&cat=${cat}`)
+    // Added Cache-Buster Timestamp
+    fetch(`actions/manage-settings.php?action=load_category_items&cat=${cat}&t=${new Date().getTime()}`)
         .then(res => res.text())
-        .then(html => { resultsDiv.innerHTML = html; })
-        .catch(() => resultsDiv.innerHTML = 'Error loading items.');
+        .then(html => { container.innerHTML = html; });
 }
 
-function updateItemData(type, index, column, element) {
-    const server = document.getElementById('admin-item-server').value;
-    const val = element.type === 'checkbox' ? (element.checked ? 1 : 0) : element.value;
-    element.style.borderColor = "#eebb00"; 
-    fetch(`actions/manage-settings.php?action=update_item_data&server=${server}&type=${type}&index=${index}&col=${column}&val=${val}`)
-        .then(() => { element.style.borderColor = "#28a745"; setTimeout(()=>element.style.borderColor="", 1000); });
+function updateItemData(type, index, col, element) {
+    const val = (element.type === 'checkbox') ? (element.checked ? 1 : 0) : element.value;
+    
+    // Added Cache-Buster Timestamp
+    fetch(`actions/manage-settings.php?action=update_item_data&type=${type}&index=${index}&col=${col}&val=${val}&t=${new Date().getTime()}`)
+        .then(() => {
+            const originalBg = element.style.backgroundColor;
+            element.style.backgroundColor = '#d4edda';
+            setTimeout(() => { element.style.backgroundColor = originalBg; }, 500);
+        });
 }
 </script>

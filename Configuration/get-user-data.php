@@ -23,6 +23,7 @@ function decrypt_pass($garbled, $key) {
     list($encrypted_data, $iv) = explode('::', base64_decode($garbled), 2);
     return openssl_decrypt($encrypted_data, ENCRYPTION_CIPHER, $key, 0, $iv);
 }
+
 function getClassName($code) {
     $classes = [
         0=>'Dark Wizard', 1=>'Soul Master', 2=>'Grand Master', 3=>'Grand Master',
@@ -75,20 +76,46 @@ $charSql = "SELECT T1.Name, T1.cLevel, T1.Class, T1.Strength, T1.Dexterity, T1.V
 $charStmt = sqlsrv_query($conn, $charSql, [$username]);
 
 $characters = [];
+$webcredits = 0;
+$wcoinc = 0;
+$wcoinp = 0;
+$goblin = 0;
+
 if ($charStmt) {
     while ($row = sqlsrv_fetch_array($charStmt, SQLSRV_FETCH_ASSOC)) {
         $row['ClassName'] = getClassName($row['Class']);
         $characters[] = $row;
+        
+        // Grab the currencies from the first character row to populate the top stats bar
+        if (empty($characters) || count($characters) === 1) {
+            $webcredits = $row['WebCredits'];
+            $wcoinc = $row['WCoinC'];
+            $wcoinp = $row['WCoinP'];
+            $goblin = $row['GoblinPoint'];
+        }
     }
 }
+
+// Ensure the server key matches the JSON configuration keys we save in AdminCP
+$server_key = ($server === 'mid') ? 'mid_rate' : 'hard_rate';
+
+// Get the specific settings for the user's active server, fallback to default if empty
+$paypal_config = $settings['paypal'][$server_key] ?? ['enabled' => false];
+$qr_ph_config = $settings['qr_ph'][$server_key] ?? ['enabled' => false, 'ratio' => 100];
 
 echo json_encode([
     'success' => true,
     'username' => $username,
     'server_label' => $_SESSION['user_server_label'],
     'characters' => $characters,
-    'features' => $settings['user_dashboard'] ?? [],
-    'rates' => $settings['conversion_rates'] ?? ['wcoinc' => 1, 'wcoinp' => 1, 'goblin' => 1] // Added this
+    'features' => $settings['user_dashboard'][$server_key] ?? [],
+    'rates' => $settings['conversion_rates'] ?? ['wcoinc' => 1, 'wcoinp' => 1, 'goblin' => 1],
+    'paypal' => $paypal_config,
+    'qr_ph' => $qr_ph_config,
+    'webcredits' => $webcredits,
+    'wcoinc' => $wcoinc,
+    'wcoinp' => $wcoinp,
+    'goblin' => $goblin
 ]);
 sqlsrv_close($conn);
 ?>

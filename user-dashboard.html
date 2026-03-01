@@ -3,169 +3,300 @@
 <head>
     <meta charset="UTF-8">
     <title>User Dashboard - MU Online</title>
-    <link rel="stylesheet" href="styles.css"> <style>
+    <style>
         body { 
             font-family: Arial, sans-serif; 
             background-color: #1a1a1a; 
-            background-size: cover;          /* Forces wallpaper to cover screen */
-            background-position: center;     /* Centers the wallpaper */
-            background-attachment: fixed;    /* Prevents wallpaper from scrolling */
+            background-size: cover;          
+            background-position: center;     
+            background-attachment: fixed;    
             color: #fff; 
             margin: 0; 
             padding: 20px; 
         }
-        .dashboard-container { max-width: 1000px; margin: 0 auto; background: rgba(30, 30, 30, 0.9); padding: 20px; border-radius: 8px; border: 1px solid #444; }
+
+        /* 3-COLUMN LAYOUT WRAPPER */
+        .layout-wrapper {
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            gap: 20px;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* SIDEBAR STYLES */
+        .sidebar {
+            width: 250px;
+            background: rgba(30, 30, 30, 0.9);
+            border: 1px solid #444;
+            border-radius: 8px;
+            padding: 15px;
+            box-sizing: border-box;
+        }
+        .sidebar-title {
+            text-align: center; color: #f1c40f; border-bottom: 2px solid #555; padding-bottom: 10px; margin-top: 0; margin-bottom: 15px;
+        }
+        .sidebar-list { list-style: none; padding: 0; margin: 0; }
+        .sidebar-list li { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #444; font-size: 0.9em; }
+        .sidebar-list li:last-child { border-bottom: none; }
+        .sidebar-list span.val { font-weight: bold; color: #28a745; }
+
+        /* TOGGLE SWITCH STYLES */
+        .toggle-container { display: flex; align-items: center; justify-content: center; gap: 10px; margin-bottom: 20px; font-size: 0.85em; font-weight: bold; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #007bff; transition: .4s; border-radius: 24px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; left: 4px; bottom: 4px; background-color: white; transition: .4s; border-radius: 50%; }
+        input:checked + .slider { background-color: #6f42c1; }
+        input:checked + .slider:before { transform: translateX(26px); }
+
+        /* MAIN DASHBOARD */
+        .dashboard-container { flex: 1; max-width: 900px; background: rgba(30, 30, 30, 0.9); padding: 20px; border-radius: 8px; border: 1px solid #444; }
         .header { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #555; padding-bottom: 10px; margin-bottom: 20px; }
-        .stats-bar { display: flex; gap: 15px; background: #222; padding: 15px; border-radius: 5px; border: 1px solid #444; margin-bottom: 20px; }
-        .stat-box { flex: 1; text-align: center; }
+        .stats-bar { display: flex; gap: 15px; background: #222; padding: 15px; border-radius: 5px; border: 1px solid #444; margin-bottom: 20px; flex-wrap: wrap; }
+        .stat-box { flex: 1; text-align: center; min-width: 100px; }
         .stat-box span { display: block; font-size: 1.2em; font-weight: bold; color: #f1c40f; }
-        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 10px; }
+        .tabs { display: flex; gap: 10px; margin-bottom: 20px; border-bottom: 1px solid #444; padding-bottom: 10px; flex-wrap: wrap; }
         .tab-btn { background: #333; color: #fff; border: 1px solid #555; padding: 10px 20px; cursor: pointer; border-radius: 4px; }
         .tab-btn.active, .tab-btn:hover { background: #007bff; border-color: #007bff; }
         .tab-content { display: none; }
         .tab-content.active { display: block; }
-        table { width: 100%; border-collapse: collapse; margin-top: 10px; }
-        th, td { padding: 10px; border: 1px solid #444; text-align: center; }
+        
+        table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.9em; }
+        th, td { padding: 8px; border: 1px solid #444; text-align: center; }
         th { background: #333; }
         .btn { background: #28a745; color: #fff; border: none; padding: 8px 15px; cursor: pointer; border-radius: 4px; }
         .btn:hover { background: #218838; }
         .btn-danger { background: #dc3545; }
         
-        /* Webshop Specific Styles */
-        .shop-container { display: flex; gap: 20px; }
-        .shop-left { flex: 1; background: #222; padding: 15px; border-radius: 5px; border: 1px solid #444; }
-        .shop-right { flex: 1; background: #222; padding: 15px; border-radius: 5px; border: 1px solid #444; display: flex; flex-direction: column; }
+        .shop-container { display: flex; gap: 20px; flex-wrap: wrap; }
+        .shop-left, .shop-right { flex: 1; min-width: 300px; background: #222; padding: 15px; border-radius: 5px; border: 1px solid #444; display: flex; flex-direction: column; }
         .form-group { margin-bottom: 15px; }
         .form-group label { display: block; margin-bottom: 5px; font-weight: bold; }
-        .form-group select, .form-group input[type="number"] { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #555; background: #333; color: #fff; }
+        .form-group select, .form-group input[type="number"], .form-group input[type="password"], .form-group input[type="text"] { width: 100%; padding: 8px; border-radius: 4px; border: 1px solid #555; background: #333; color: #fff; box-sizing: border-box; }
         .checkbox-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; background: #2a2a2a; padding: 10px; border-radius: 4px; border: 1px solid #444; }
         
-        /* Modals */
         .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; }
         .modal-content { background: #222; max-width: 400px; margin: 100px auto; padding: 20px; border-radius: 5px; border: 1px solid #555; }
     </style>
 </head>
 <body>
 
-<div class="dashboard-container">
-    <div class="header">
-        <h2>Welcome, <span id="user-name" style="color: #007bff;">User</span></h2>
-        <div>
-            <span id="server-name" style="margin-right: 15px; color: #aaa;">Server</span>
-            <button class="btn btn-danger" onclick="logout()">Logout</button>
+<div class="layout-wrapper">
+    
+    <div class="sidebar">
+        <h3 class="sidebar-title" id="left-sidebar-title">My Warehouse</h3>
+        
+        <div class="toggle-container">
+            <span style="color:#007bff;">Items</span>
+            <label class="switch">
+                <input type="checkbox" id="sidebar-toggle" onchange="toggleLeftSidebar()">
+                <span class="slider"></span>
+            </label>
+            <span style="color:#6f42c1;">Classes</span>
         </div>
+
+        <ul class="sidebar-list" id="sidebar-jewels">
+            <li style="text-align:center; display:block; padding:10px; color:#888;">Loading Items...</li>
+        </ul>
+
+        <ul class="sidebar-list" id="sidebar-classes" style="display:none;">
+            <li><span>Dark Knight:</span> <span class="val" id="class-dk" style="color:#ffc107;">0</span></li>
+            <li><span>Dark Wizard:</span> <span class="val" id="class-dw" style="color:#007bff;">0</span></li>
+            <li><span>Fairy Elf:</span> <span class="val" id="class-elf" style="color:#28a745;">0</span></li>
+            <li><span>Magic Gladiator:</span> <span class="val" id="class-mg" style="color:#dc3545;">0</span></li>
+            <li><span>Dark Lord:</span> <span class="val" id="class-dl" style="color:#eebb00;">0</span></li>
+            <li><span>Summoner:</span> <span class="val" id="class-sum" style="color:#b19cd9;">0</span></li>
+            <li><span>Rage Fighter:</span> <span class="val" id="class-rf" style="color:#fd7e14;">0</span></li>
+        </ul>
     </div>
 
-    <div class="stats-bar">
-        <div class="stat-box">WebCredits<span id="stat-web-credits">0</span></div>
-        <div class="stat-box">WCoinC<span id="stat-wcoinc">0</span></div>
-        <div class="stat-box">WCoinP<span id="stat-wcoinp">0</span></div>
-        <div class="stat-box">GoblinPoints<span id="stat-goblin">0</span></div>
-        <button class="btn" style="background:#17a2b8;" onclick="openConvertModal()">Convert</button>
-        <button class="btn" style="background:#6c757d;" onclick="openPasswordModal()">Password</button>
-    </div>
+    <div class="dashboard-container">
+        <div class="header">
+            <h2 style="margin:0;">Welcome, <span id="user-name" style="color: #007bff;">User</span></h2>
+            <div>
+                <span id="server-name" style="margin-right: 15px; color: #aaa;">Server</span>
+                <button class="btn btn-danger" onclick="logout()">Logout</button>
+            </div>
+        </div>
 
-    <div class="tabs">
-        <button class="tab-btn active" onclick="switchTab('characters')">My Characters</button>
-        <button class="tab-btn" onclick="switchTab('webshop')">Webshop</button>
-    </div>
+        <div class="stats-bar">
+            <div class="stat-box">WebCredits<span id="stat-web-credits">0</span></div>
+            <div class="stat-box">WCoinC<span id="stat-wcoinc">0</span></div>
+            <div class="stat-box">WCoinP<span id="stat-wcoinp">0</span></div>
+            <div class="stat-box">GoblinPoints<span id="stat-goblin">0</span></div>
+            <div style="display:flex; flex-direction:column; gap:5px; justify-content:center;">
+                <button class="btn" style="background:#17a2b8; width:100%;" onclick="openConvertModal()">Convert</button>
+                <button class="btn" style="background:#6c757d; width:100%;" onclick="openPasswordModal()">Password</button>
+            </div>
+        </div>
 
-    <div id="loading-msg" style="text-align: center; padding: 20px; color: yellow;">Loading data...</div>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('characters')">My Characters</button>
+            <button class="tab-btn" onclick="switchTab('webshop')">Webshop</button>
+            <button class="tab-btn" id="tab-btn-donate" onclick="switchTab('donate')" style="display:none; background:#28a745;">Donate</button>
+        </div>
 
-    <div id="tab-characters" class="tab-content active">
-        <table id="char-table" style="display:none;">
-            <thead>
-                <tr>
-                    <th>Name</th><th>Class</th><th>Level</th><th>Master Lvl</th><th>Resets</th>
-                    <th>STR</th><th>AGI</th><th>VIT</th><th>ENE</th><th>CMD</th><th>PK</th><th>Action</th>
-                </tr>
-            </thead>
-            <tbody id="char-list"></tbody>
-        </table>
-    </div>
+        <div id="loading-msg" style="text-align: center; padding: 20px; color: yellow;">Loading data...</div>
 
-    <div id="tab-webshop" class="tab-content">
-        <div class="shop-container">
-            <div class="shop-left">
-                <div class="form-group">
-                    <label>Category:</label>
-                    <select id="shop-category" onchange="filterShopItems()"></select>
+        <div id="tab-characters" class="tab-content active">
+            <div style="overflow-x: auto;">
+                <table id="char-table" style="display:none;">
+                    <thead>
+                        <tr>
+                            <th>Name</th><th>Class</th><th>Level</th><th>Master Lvl</th><th>Resets</th>
+                            <th>STR</th><th>AGI</th><th>VIT</th><th>ENE</th><th>CMD</th><th>PK</th><th>Action</th>
+                        </tr>
+                    </thead>
+                    <tbody id="char-list"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <div id="tab-webshop" class="tab-content">
+            <div class="shop-container">
+                <div class="shop-left">
+                    <div class="form-group">
+                        <label>Category:</label>
+                        <select id="shop-category" onchange="filterShopItems()"></select>
+                    </div>
+                    <div class="form-group">
+                        <label>Item:</label>
+                        <select id="shop-item" onchange="applyItemFilters(); calculateShopPrice();">
+                            <option value="">-- Choose Category First --</option>
+                        </select>
+                    </div>
+                    
+                    <div id="shop-group-level" class="form-group" style="display:none;">
+                        <label>Item Level:</label>
+                        <select id="shop-level" onchange="calculateShopPrice()">
+                            <option value="0">+0</option><option value="1">+1</option><option value="2">+2</option>
+                            <option value="3">+3</option><option value="4">+4</option><option value="5">+5</option>
+                            <option value="6">+6</option><option value="7">+7</option><option value="8">+8</option>
+                            <option value="9">+9</option><option value="10">+10</option><option value="11">+11</option>
+                            <option value="12">+12</option><option value="13">+13</option><option value="14">+14</option>
+                            <option value="15">+15</option>
+                        </select>
+                    </div>
+
+                    <div id="shop-group-luckskill" class="checkbox-grid" style="display:none; margin-bottom: 15px;">
+                        <div><label><input type="checkbox" id="shop-luck" onchange="calculateShopPrice()"> Luck</label></div>
+                        <div><label><input type="checkbox" id="shop-skill" onchange="calculateShopPrice()"> Skill</label></div>
+                    </div>
+
+                    <div id="shop-group-exc" style="display:none; margin-bottom: 15px;">
+                        <label>Excellent Options:</label>
+                        <div class="checkbox-grid">
+                            <label><input type="checkbox" class="shop-exc" value="1" onchange="calculateShopPrice()"> Exc Opt 1 (Mana)</label>
+                            <label><input type="checkbox" class="shop-exc" value="2" onchange="calculateShopPrice()"> Exc Opt 2 (HP)</label>
+                            <label><input type="checkbox" class="shop-exc" value="4" onchange="calculateShopPrice()"> Exc Opt 3 (+Speed)</label>
+                            <label><input type="checkbox" class="shop-exc" value="8" onchange="calculateShopPrice()"> Exc Opt 4 (+Dmg/Ref)</label>
+                            <label><input type="checkbox" class="shop-exc" value="16" onchange="calculateShopPrice()"> Exc Opt 5 (+Dmg%/Def)</label>
+                            <label><input type="checkbox" class="shop-exc" value="32" onchange="calculateShopPrice()"> Exc Opt 6 (Exc Dmg/Zen)</label>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group">
-                    <label>Item:</label>
-                    <select id="shop-item" onchange="applyItemFilters(); calculateShopPrice();">
-                        <option value="">-- Choose Category First --</option>
-                    </select>
+
+                <div class="shop-right">
+                    <div id="shop-group-advanced" style="display:none; flex-direction:column; gap:10px; background:#2a2a2a; padding:15px; border-radius:5px; border:1px solid #555; margin-bottom:15px;">
+                        <div style="display:none;">
+                            <label style="color:#eebb00; font-weight:bold;"><input type="checkbox" id="shop-380" onchange="calculateShopPrice()"> Add 380 PvP Option</label>
+                        </div>
+
+                        <div id="shop-group-ancient" style="display:none;">
+                            <label style="color:#28a745; font-weight:bold;">Ancient Set Option:</label>
+                            <select id="shop-ancient" onchange="calculateShopPrice()">
+                                <option value="0">None</option>
+                            </select>
+                        </div>
+
+                        <div id="shop-group-harmony" style="display:none;">
+                            <label style="color:#ffc107; font-weight:bold;">Harmony Option:</label>
+                            <select id="shop-harmony" onchange="calculateShopPrice()">
+                                <option value="0">None</option>
+                            </select>
+                        </div>
+
+                        <div id="shop-group-sockets" style="display:none;">
+                            <label style="color:#b19cd9; font-weight:bold;">Empty Sockets:</label>
+                            <select id="shop-sockets" onchange="calculateShopPrice()">
+                                <option value="0">0</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #444; text-align: center;">
+                        <div style="font-size: 1.2em; margin-bottom: 10px;">Total Price: <span id="shop-total-price" style="color:#f1c40f; font-weight:bold; font-size:1.5em;">0</span> Credits</div>
+                        <button class="btn" style="width:100%; font-size:1.1em; padding:15px;" onclick="buyWebshopItem()">Buy Item</button>
+                        <div id="shop-message" style="margin-top: 15px; font-weight: bold;"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="tab-donate" class="tab-content">
+            <div style="display: flex; gap: 20px; flex-wrap: wrap; justify-content: center;">
+                
+                <div id="paypal-container" style="display:none; flex: 1; min-width: 250px; background: #222; padding: 20px; border-radius: 8px; border: 1px solid #444; text-align: center;">
+                    <h3 style="color:#007bff; margin-top:0;">Donate via PayPal</h3>
+                    <div class="form-group" style="text-align:left;">
+                        <label>Amount (<span id="paypal-currency-label">USD</span>):</label>
+                        <input type="number" id="donate-amount" min="1" value="5" oninput="calculateDonation()" style="font-size:1.2em; text-align:center;">
+                    </div>
+                    <div style="margin: 15px 0;">
+                        Receive: <br>
+                        <span id="donate-receive-amount" style="font-size:1.5em; font-weight:bold; color:#28a745;">0</span> <span style="color:#28a745;">Credits</span>
+                    </div>
+                    <div id="paypal-button-container"></div>
+                    <div id="paypal-message" style="margin-top: 10px; font-weight:bold;"></div>
+                </div>
+
+                <div id="qr-ph-container" style="display:none; flex: 1; min-width: 250px; background: #222; padding: 20px; border-radius: 8px; border: 1px solid #444; text-align: center;">
+                    <h3 style="color:#f1c40f; margin-top:0;">Donate via QR Ph</h3>
+                    
+                    <div style="background: #fff; padding: 10px; border-radius: 8px; display: inline-block; margin-bottom: 15px;">
+                        <img src="qr-ph.png" alt="QR Ph Code" style="width: 150px; height: 150px; border-radius: 4px;">
+                    </div>
+
+                    <div class="form-group" style="text-align:left;">
+                        <label>WebCredits You Want:</label>
+                        <input type="number" id="qr-credits" placeholder="e.g. 1000" oninput="updateQRPrice()">
+                    </div>
+
+                    <div style="margin: 15px 0; text-align: center; background: #1a1a1a; padding: 10px; border-radius: 5px; border: 1px dashed #444;">
+                        <span style="color: #aaa; font-size: 0.9em;">Total Price to Pay:</span><br>
+                        <span id="qr-total-php" style="color: #28a745; font-weight: bold; font-size: 1.5em;">0.00</span> 
+                        <span style="color: #28a745; font-weight: bold;">PHP</span>
+                    </div>
+
+                    <div class="form-group" style="text-align:left;">
+                        <label>Reference Number:</label>
+                        <input type="text" id="qr-ref-no" placeholder="13-digit Reference No.">
+                    </div>
+
+                    <div class="form-group" style="margin-top: 10px; text-align:left;">
+                        <label>Upload Screenshot (Proof):</label>
+                        <input type="file" id="qr-file" accept="image/*" style="padding: 5px 0; background: transparent; border: none; color: #888;">
+                    </div>
+
+                    <div id="qr-status-msg" style="margin-top: 10px; text-align: center; font-weight: bold;"></div>
+                    <button class="btn" style="width:100%; margin-top:10px;" onclick="sendQRProof()">Submit Proof</button>
                 </div>
                 
-                <div id="shop-group-level" class="form-group" style="display:none;">
-                    <label>Item Level:</label>
-                    <select id="shop-level" onchange="calculateShopPrice()">
-                        <option value="0">+0</option><option value="1">+1</option><option value="2">+2</option>
-                        <option value="3">+3</option><option value="4">+4</option><option value="5">+5</option>
-                        <option value="6">+6</option><option value="7">+7</option><option value="8">+8</option>
-                        <option value="9">+9</option><option value="10">+10</option><option value="11">+11</option>
-                        <option value="12">+12</option><option value="13">+13</option><option value="14">+14</option>
-                        <option value="15">+15</option>
-                    </select>
-                </div>
-
-                <div id="shop-group-luckskill" class="checkbox-grid" style="display:none; margin-bottom: 15px;">
-                    <div><label><input type="checkbox" id="shop-luck" onchange="calculateShopPrice()"> Luck</label></div>
-                    <div><label><input type="checkbox" id="shop-skill" onchange="calculateShopPrice()"> Skill</label></div>
-                </div>
-
-                <div id="shop-group-exc" style="display:none; margin-bottom: 15px;">
-                    <label>Excellent Options:</label>
-                    <div class="checkbox-grid">
-                        <label><input type="checkbox" class="shop-exc" value="1" onchange="calculateShopPrice()"> Exc Opt 1 (Mana)</label>
-                        <label><input type="checkbox" class="shop-exc" value="2" onchange="calculateShopPrice()"> Exc Opt 2 (HP)</label>
-                        <label><input type="checkbox" class="shop-exc" value="4" onchange="calculateShopPrice()"> Exc Opt 3 (+Speed)</label>
-                        <label><input type="checkbox" class="shop-exc" value="8" onchange="calculateShopPrice()"> Exc Opt 4 (+Dmg/Ref)</label>
-                        <label><input type="checkbox" class="shop-exc" value="16" onchange="calculateShopPrice()"> Exc Opt 5 (+Dmg%/Def)</label>
-                        <label><input type="checkbox" class="shop-exc" value="32" onchange="calculateShopPrice()"> Exc Opt 6 (Exc Dmg/Zen)</label>
-                    </div>
-                </div>
-            </div>
-
-            <div class="shop-right">
-                <div id="shop-group-advanced" style="display:none; flex-direction:column; gap:10px; background:#2a2a2a; padding:15px; border-radius:5px; border:1px solid #555; margin-bottom:15px;">
-                    
-                    <div style="display:none;">
-                        <label style="color:#eebb00; font-weight:bold;"><input type="checkbox" id="shop-380" onchange="calculateShopPrice()"> Add 380 PvP Option</label>
-                    </div>
-
-                    <div id="shop-group-ancient" style="display:none;">
-                        <label style="color:#28a745; font-weight:bold;">Ancient Set Option:</label>
-                        <select id="shop-ancient" onchange="calculateShopPrice()" style="width:100%; padding:8px; background:#333; color:#fff; border:1px solid #555; border-radius:4px;">
-                            <option value="0">None</option>
-                        </select>
-                    </div>
-
-                    <div id="shop-group-harmony" style="display:none;">
-                        <label style="color:#ffc107; font-weight:bold;">Harmony Option (Yellow):</label>
-                        <select id="shop-harmony" onchange="calculateShopPrice()" style="width:100%; padding:8px; background:#333; color:#fff; border:1px solid #555; border-radius:4px;">
-                            <option value="0">None</option>
-                        </select>
-                    </div>
-
-                    <div id="shop-group-sockets" style="display:none;">
-                        <label style="color:#b19cd9; font-weight:bold;">Empty Sockets:</label>
-                        <select id="shop-sockets" onchange="calculateShopPrice()" style="width:100%; padding:8px; background:#333; color:#fff; border:1px solid #555; border-radius:4px;">
-                            <option value="0">0</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #444; text-align: center;">
-                    <div style="font-size: 1.2em; margin-bottom: 10px;">Total Price: <span id="shop-total-price" style="color:#f1c40f; font-weight:bold; font-size:1.5em;">0</span> Credits</div>
-                    <button class="btn" style="width:100%; font-size:1.1em; padding:15px;" onclick="buyWebshopItem()">Buy Item</button>
-                    <div id="shop-message" style="margin-top: 15px; font-weight: bold;"></div>
-                </div>
             </div>
         </div>
+
     </div>
-</div>
+
+    <div class="sidebar">
+        <h3 class="sidebar-title">Server Rankings</h3>
+        <ul class="sidebar-list" id="sidebar-rankings">
+            <li style="text-align:center; display:block; padding:20px; color:#888;">Loading Rankings...</li>
+        </ul>
+    </div>
+
+</div> 
 
 <div id="manageModal" class="modal">
     <div class="modal-content">
@@ -201,9 +332,9 @@
 <div id="passwordModal" class="modal">
     <div class="modal-content">
         <h3 style="margin-top:0;">Change Password</h3>
-        <div class="form-group"><label>Old Password:</label><input type="password" id="old-pass" style="width:100%; padding:8px; border-radius:4px;"></div>
-        <div class="form-group"><label>New Password:</label><input type="password" id="new-pass" style="width:100%; padding:8px; border-radius:4px;"></div>
-        <div class="form-group"><label>Confirm New:</label><input type="password" id="conf-pass" style="width:100%; padding:8px; border-radius:4px;"></div>
+        <div class="form-group"><label>Old Password:</label><input type="password" id="old-pass"></div>
+        <div class="form-group"><label>New Password:</label><input type="password" id="new-pass"></div>
+        <div class="form-group"><label>Confirm New:</label><input type="password" id="conf-pass"></div>
         <div id="pwd-message" style="text-align:center; margin-bottom:10px; font-weight:bold;"></div>
         <button class="btn" style="width:100%; margin-bottom:10px;" onclick="submitPasswordChange()">Change Password</button>
         <button class="btn btn-danger" style="width:100%;" onclick="closePasswordModal()">Cancel</button>

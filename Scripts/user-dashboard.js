@@ -1,15 +1,21 @@
 document.addEventListener('DOMContentLoaded', function() {
     loadUserData();
     loadWebshopItems();
-	loadWallpaper();
+    loadWallpaper();
+    loadSidebars();
 });
 
 // --- GLOBAL VARIABLES ---
 let dashboardFeatures = {}; 
 let conversionRates = { wcoinc: 1, wcoinp: 1, goblin: 1 };
-let webshopPricing = { price_level: 10, price_exc: 50, price_luck_skill: 25, price_380: 100, price_harmony: 100, price_socket: 50 };
+let webshopPricing = { price_level: 10, price_exc: 50, price_luck_skill: 25, price_380: 100, price_harmony: 100, price_socket: 50, price_ancient: 100 };
 let selectedCharacter = '';
 let availableShopItems = [];
+
+// Donation Globals
+let paypalConfig = { enabled: false, rate: 100, currency: 'USD' };
+let paypalScriptLoaded = false;
+window.qrRatio = 100; // Global QR Ph Ratio
 
 const categoryNames = {
     0: "Swords", 1: "Axes", 2: "Maces & Scepters", 3: "Spears",
@@ -25,13 +31,16 @@ function switchTab(tabId) {
     
     const targetTab = document.getElementById(`tab-${tabId}`);
     if (targetTab) targetTab.classList.add('active');
-    if (event && event.currentTarget) event.currentTarget.classList.add('active');
+    
+    // Add active class to the clicked button based on the tabId
+    const btn = document.querySelector(`.tab-btn[onclick="switchTab('${tabId}')"]`);
+    if(btn) btn.classList.add('active');
 }
 
 // --- USER DATA ---
 async function loadUserData() {
     try {
-        const response = await fetch('Configuration/get-user-data.php');
+        const response = await fetch('Configuration/get-user-data.php?t=' + new Date().getTime());
         const data = await response.json();
         
         if (!data.success) {
@@ -43,6 +52,7 @@ async function loadUserData() {
         dashboardFeatures = data.features || {};
         conversionRates = data.rates || { wcoinc: 1, wcoinp: 1, goblin: 1 };
 
+        // Setup Webshop Tab
         const webshopTabBtn = document.querySelector('.tab-btn[onclick="switchTab(\'webshop\')"]');
         const webshopTabContent = document.getElementById('tab-webshop');
         
@@ -54,6 +64,46 @@ async function loadUserData() {
             if (webshopTabBtn) webshopTabBtn.style.display = 'inline-block';
         }
 
+        // Setup Donation Tab (PayPal & QR Ph)
+        paypalConfig = data.paypal || { enabled: false, rate: 100, currency: 'USD' };
+        const qrConfig = data.qr_ph || { enabled: false, ratio: 100 };
+        window.qrRatio = qrConfig.ratio;
+
+        const donateTabBtn = document.getElementById('tab-btn-donate');
+        const paypalContainer = document.getElementById('paypal-container');
+        const qrContainer = document.getElementById('qr-ph-container');
+        
+        // Handle PayPal Visibility
+        if (paypalConfig.enabled && paypalConfig.client_id) {
+            if (paypalContainer) paypalContainer.style.display = 'block';
+            document.getElementById('paypal-currency-label').textContent = paypalConfig.currency;
+            calculateDonation(); 
+            
+            if (!paypalScriptLoaded) {
+                const script = document.createElement('script');
+                script.src = `https://www.paypal.com/sdk/js?client-id=${paypalConfig.client_id}&currency=${paypalConfig.currency}`;
+                script.onload = () => { renderPayPalButtons(); paypalScriptLoaded = true; };
+                document.body.appendChild(script);
+            }
+        } else {
+            if (paypalContainer) paypalContainer.style.display = 'none';
+        }
+
+        // Handle QR Ph Visibility
+        if (qrConfig.enabled) {
+            if (qrContainer) qrContainer.style.display = 'block';
+        } else {
+            if (qrContainer) qrContainer.style.display = 'none';
+        }
+
+        // Show/Hide Main Donation Tab
+        if (!qrConfig.enabled && (!paypalConfig.enabled || !paypalConfig.client_id)) {
+            if (donateTabBtn) donateTabBtn.style.display = 'none';
+        } else {
+            if (donateTabBtn) donateTabBtn.style.display = 'inline-block';
+        }
+
+        // Set Converstion Rates text
         if(document.getElementById('rate-wcoinc-disp')) {
             document.getElementById('rate-wcoinc-disp').textContent = conversionRates.wcoinc;
             document.getElementById('rate-wcoinp-disp').textContent = conversionRates.wcoinp;
@@ -108,7 +158,7 @@ async function loadUserData() {
 // --- WEBSHOP SYSTEM ---
 async function loadWebshopItems() {
     try {
-        const response = await fetch('Configuration/get-webshop-items.php');
+        const response = await fetch('Configuration/get-webshop-items.php?t=' + new Date().getTime());
         const data = await response.json();
         
         if (data.success) {
@@ -180,7 +230,7 @@ function applyItemFilters() {
         document.getElementById('shop-group-exc').style.display = 'none';
         document.getElementById('shop-group-advanced').style.display = 'none';
         document.getElementById('shop-group-sockets').style.display = 'none';
-        document.getElementById('shop-group-ancient').style.display = 'none';
+        if(document.getElementById('shop-group-ancient')) document.getElementById('shop-group-ancient').style.display = 'none';
         return;
     }
 
@@ -210,7 +260,7 @@ function applyItemFilters() {
     document.getElementById('shop-380').parentElement.parentElement.style.display = (opt.dataset.allow380 == 1) ? 'block' : 'none';
     if(opt.dataset.allow380 == 0) document.getElementById('shop-380').checked = false;
 
-    // Toggle Ancient & Build Dynamic Names
+    // Toggle Ancient
     const ancientContainer = document.getElementById('shop-group-ancient');
     const ancientSelect = document.getElementById('shop-ancient');
     if (ancientContainer && ancientSelect) {
@@ -221,21 +271,18 @@ function applyItemFilters() {
             const name1 = opt.dataset.ancName1;
             const name2 = opt.dataset.ancName2;
 
-            // Only display Tier 1 if a valid name was found
             if (name1 && name1 !== 'null' && name1 !== '' && name1 !== 'undefined' && name1 !== '0') {
                 ancientSelect.innerHTML += `<option value="1">${name1} (+5 Stamina)</option>`;
                 ancientSelect.innerHTML += `<option value="2">${name1} (+10 Stamina)</option>`;
                 optionsAdded = true;
             }
 
-            // Only display Tier 2 if a valid name was found
             if (name2 && name2 !== 'null' && name2 !== '' && name2 !== 'undefined' && name2 !== '0') {
                 ancientSelect.innerHTML += `<option value="3">${name2} (+5 Stamina)</option>`;
                 ancientSelect.innerHTML += `<option value="4">${name2} (+10 Stamina)</option>`;
                 optionsAdded = true;
             }
 
-            // If at least one valid Ancient set was found, show the container. Otherwise, hide it.
             if (optionsAdded) {
                 ancientContainer.style.display = 'block';
             } else {
@@ -316,7 +363,7 @@ function calculateShopPrice() {
     if (has380) totalPrice += (webshopPricing.price_380 || 100);
     if (hasHarmony) totalPrice += (webshopPricing.price_harmony || 100);
     totalPrice += (sockets * (webshopPricing.price_socket || 50));
-    if (ancient > 0) totalPrice += (webshopPricing.price_ancient || 100); // Uses Dynamic DB Price now
+    if (ancient > 0) totalPrice += (webshopPricing.price_ancient || 100);
 
     const maxExc = parseInt(selectedOption.dataset.maxExc) || 0;
     if (selectedOption.dataset.allowExc == 1 && maxExc > 0) {
@@ -375,8 +422,11 @@ async function buyWebshopItem() {
         
         if (data.success) {
             msgDiv.innerHTML = `<span style="color:#28a745">✅ ${data.message}</span>`;
+            
+            // ---> INSTANT REFRESH ADDED HERE <---
+            loadUserData(); 
+            
             setTimeout(() => {
-                loadUserData(); 
                 msgDiv.innerHTML = '';
                 itemSelect.value = '';
                 applyItemFilters();
@@ -388,6 +438,49 @@ async function buyWebshopItem() {
     } catch (e) {
         msgDiv.innerHTML = '<span style="color:#dc3545">❌ System Error. Check server connection.</span>';
     }
+}
+
+// --- PAYPAL DONATION SYSTEM ---
+function calculateDonation() {
+    const amount = parseFloat(document.getElementById('donate-amount').value) || 0;
+    const credits = Math.floor(amount * paypalConfig.rate);
+    document.getElementById('donate-receive-amount').textContent = credits;
+}
+
+function renderPayPalButtons() {
+    paypal.Buttons({
+        createOrder: function(data, actions) {
+            const amount = parseFloat(document.getElementById('donate-amount').value);
+            if(amount <= 0) return;
+            return actions.order.create({
+                purchase_units: [{
+                    amount: { value: amount.toFixed(2) }
+                }]
+            });
+        },
+        onApprove: function(data, actions) {
+            const msgDiv = document.getElementById('paypal-message');
+            msgDiv.innerHTML = '<span style="color:#f1c40f;">Capturing payment... Do not close window.</span>';
+            
+            return fetch('Configuration/paypal-capture.php', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ orderID: data.orderID })
+            }).then(res => res.json()).then(result => {
+                if(result.success) {
+                    msgDiv.innerHTML = `<span style="color:#28a745;">✅ ${result.message}</span>`;
+                    loadUserData(); 
+                } else {
+                    msgDiv.innerHTML = `<span style="color:#dc3545;">❌ ${result.message}</span>`;
+                }
+            }).catch(err => {
+                msgDiv.innerHTML = `<span style="color:#dc3545;">❌ Connection error verifying payment.</span>`;
+            });
+        },
+        onCancel: function (data) {
+            document.getElementById('paypal-message').innerHTML = '<span style="color:#dc3545;">Payment cancelled.</span>';
+        }
+    }).render('#paypal-button-container');
 }
 
 // --- MODALS & ACTIONS ---
@@ -490,25 +583,150 @@ async function submitPasswordChange() {
     } catch (e) { msgDiv.innerHTML = '<span style="color:#dc3545">❌ System Error.</span>'; }
 }
 
-async function logout() { await fetch('Configuration/logout.php'); window.location.href = 'index.html'; }
+// --- QR PH MANUAL DONATION SYSTEM ---
+function updateQRPrice() {
+    const ratio = window.qrRatio || 100; 
+    const creditsInput = document.getElementById('qr-credits');
+    const priceDisplay = document.getElementById('qr-total-php');
+    
+    if (!creditsInput || !priceDisplay) return;
 
-window.onclick = function(event) {
-    if (event.target == document.getElementById('manageModal')) closeManageModal();
-    if (event.target == document.getElementById('passwordModal')) closePasswordModal();
-    if (event.target == document.getElementById('convertModal')) closeConvertModal();
+    const credits = parseInt(creditsInput.value) || 0;
+    const totalPhp = (credits / ratio).toFixed(2);
+    priceDisplay.textContent = totalPhp;
 }
 
+async function sendQRProof() {
+    const credits = document.getElementById('qr-credits').value;
+    const ref = document.getElementById('qr-ref-no').value;
+    const fileInput = document.getElementById('qr-file');
+    const msg = document.getElementById('qr-status-msg');
+
+    if (!credits || !ref || fileInput.files.length === 0) {
+        msg.style.color = "#dc3545";
+        msg.innerHTML = "❌ Please fill all fields and upload a screenshot.";
+        return;
+    }
+
+    const formData = new FormData();
+    formData.append('credits', credits);
+    formData.append('reference', ref);
+    formData.append('proof', fileInput.files[0]);
+
+    msg.style.color = "#f1c40f";
+    msg.innerHTML = "⏳ Uploading proof... please wait.";
+
+    try {
+        const response = await fetch('Configuration/submit-qr-donation.php', {
+            method: 'POST',
+            body: formData
+        });
+        
+        if (!response.ok) throw new Error(`Server returned ${response.status}`);
+        const result = await response.json();
+
+        if (result.success) {
+            msg.style.color = "#28a745";
+            msg.innerHTML = "✅ Proof sent! Waiting for Admin approval.";
+            
+            document.getElementById('qr-credits').value = '';
+            document.getElementById('qr-ref-no').value = '';
+            document.getElementById('qr-file').value = '';
+            updateQRPrice();
+        } else {
+            msg.style.color = "#dc3545";
+            msg.innerHTML = "❌ " + result.message;
+        }
+    } catch (e) {
+        msg.style.color = "#dc3545";
+        msg.innerHTML = "❌ System Error. Check folder permissions or DB connection.";
+    }
+}
+
+// --- LOAD WALLPAPER ---
 async function loadWallpaper() {
     try {
         const response = await fetch('Configuration/settings.json?v=' + Date.now());
         const settings = await response.json();
         if (settings.wallpaper_url) {
             document.body.style.backgroundImage = `url('${settings.wallpaper_url}')`;
-            document.body.style.backgroundSize = 'cover';
-            document.body.style.backgroundPosition = 'center';
-            document.body.style.backgroundAttachment = 'fixed';
         }
     } catch (e) {
         console.log("No wallpaper set or failed to load.");
     }
+}
+
+// --- SIDEBAR SYSTEM (JEWELS, CLASSES, RANKINGS) ---
+async function loadSidebars() {
+    try {
+        const res = await fetch('Configuration/get-sidebar-stats.php', { cache: 'no-store' }); 
+        const data = await res.json();
+        if (data.success) {
+            
+            // 1. UPDATE SERVER ECONOMY (JEWELS/COINS)
+            const jUl = document.getElementById('sidebar-jewels'); 
+            if (jUl) {
+                jUl.innerHTML = '';
+                if (data.tracked_items && Object.keys(data.tracked_items).length > 0) { 
+                    for (const [name, count] of Object.entries(data.tracked_items)) { 
+                        jUl.innerHTML += `<li><span>${name}:</span> <span class="val">${count}</span></li>`; 
+                    } 
+                } else {
+                    jUl.innerHTML += `<li><span style="color:#aaa;">No items configured.</span></li>`;
+                }
+                
+                jUl.innerHTML += `<li style="margin-top:10px; font-size:0.8em; color:#aaa; text-align:center; display:block;">(Server-wide Vault Economy)</li>`;
+            }
+            
+            // 2. UPDATE CLASSES
+            ['dk','dw','elf','mg','dl','sum','rf'].forEach(c => {
+                const el = document.getElementById(`class-${c}`);
+                if (el) el.textContent = data.classes[c.toUpperCase()] || 0;
+            });
+            
+            // 3. UPDATE RANKINGS
+            const rUl = document.getElementById('sidebar-rankings'); 
+            if (rUl) {
+                rUl.innerHTML = '';
+                if (data.rankings.length === 0) {
+                    rUl.innerHTML = '<li style="text-align:center; display:block; padding:10px; color:#888;">No players found.</li>';
+                } else {
+                    data.rankings.forEach((char, i) => {
+                        let color = i === 0 ? '#f1c40f' : (i === 1 ? '#e0e0e0' : (i === 2 ? '#cd7f32' : '#aaa'));
+                        rUl.innerHTML += `<li style="align-items:center;"><strong style="color:${color}; font-size:1.2em; width:20px;">${i+1}.</strong><span style="flex:1; margin-left:10px; font-weight:bold;">${char.Name}</span><div style="text-align:right;"><span style="display:block; color:#28a745; font-size:0.9em;">${char.ResetCount} Resets</span><span style="display:block; color:#aaa; font-size:0.8em;">Lvl ${char.cLevel}</span></div></li>`;
+                    });
+                }
+            }
+        }
+    } catch(e) { console.log("Sidebar load error", e); }
+}
+
+function toggleLeftSidebar() {
+    const isClasses = document.getElementById('sidebar-toggle').checked;
+    document.getElementById('sidebar-jewels').style.display = isClasses ? 'none' : 'block';
+    document.getElementById('sidebar-classes').style.display = isClasses ? 'block' : 'none';
+    document.getElementById('left-sidebar-title').textContent = isClasses ? 'Server Classes' : 'My Warehouse';
+}
+
+// --- LOGOUT LOGIC ---
+async function logout() { 
+    try {
+        // Add timestamp to prevent the browser from caching the logout request itself
+        await fetch('Configuration/logout.php?t=' + new Date().getTime(), { method: 'POST' }); 
+    } catch(e) {
+        console.log("Logout request failed, forcing redirect.");
+    }
+    
+    // Wipe all local browser storage just to be safe
+    localStorage.clear();
+    sessionStorage.clear();
+    
+    // Force a Hard Redirect to the index page (bypasses browser cache)
+    window.location.replace('index.html?logout=success&t=' + new Date().getTime()); 
+}
+
+window.onclick = function(event) {
+    if (event.target == document.getElementById('manageModal')) closeManageModal();
+    if (event.target == document.getElementById('passwordModal')) closePasswordModal();
+    if (event.target == document.getElementById('convertModal')) closeConvertModal();
 }

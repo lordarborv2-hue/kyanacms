@@ -1,5 +1,8 @@
 <?php
 session_start();
+error_reporting(E_ALL);
+ini_set('display_errors', 1); 
+
 if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) { die('Access Denied.'); }
 require_once '../../config.php';
 
@@ -20,17 +23,12 @@ if (isset($_GET['action']) && $_GET['action'] === 'lookup_credits') {
     $settings = json_decode(file_get_contents('../../Configuration/settings.json'), true);
     $user = $_GET['user'] ?? '';
     
-    $srv_choice = (isset($_GET['server']) && $_GET['server'] === 'hard') ? 'hard_rate' : 'mid_rate';
-    $db_config = $settings['database'][$srv_choice];
+    $admin_srv = $_SESSION['admin_server'] ?? 'mid';
+    $admin_server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
+    $db_config = $settings['database'][$admin_server_key]; 
     
     if (empty($db_config['host'])) { echo json_encode(['success' => false]); exit; }
-
-    $conn = sqlsrv_connect($db_config['host'], [
-        "Database" => $db_config['name'], "Uid" => $db_config['user'],
-        "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
-        "TrustServerCertificate" => 1, "Encrypt" => 0
-    ]);
-
+    $conn = sqlsrv_connect($db_config['host'], ["Database" => $db_config['name'], "Uid" => $db_config['user'], "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY), "TrustServerCertificate" => 1, "Encrypt" => 0]);
     if (!$conn) { echo json_encode(['success' => false]); exit; }
     
     $sql = "SELECT credits FROM WebCredits WHERE memb___id = ?";
@@ -38,71 +36,46 @@ if (isset($_GET['action']) && $_GET['action'] === 'lookup_credits') {
     $row = $stmt ? sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC) : null;
     
     header('Content-Type: application/json');
-    if ($row) { echo json_encode(['success' => true, 'credits' => $row['credits']]); } 
-    else { echo json_encode(['success' => false]); }
-    
+    if ($row) { echo json_encode(['success' => true, 'credits' => $row['credits']]); } else { echo json_encode(['success' => false]); }
     sqlsrv_close($conn); exit;
 }
 
 if (isset($_GET['action']) && $_GET['action'] === 'load_category_items') {
     $settings = json_decode(file_get_contents('../../Configuration/settings.json'), true);
     $cat = (int)$_GET['cat'];
-    $srv = ($_GET['server'] === 'hard_rate') ? 'hard_rate' : 'mid_rate';
     
-    $db_config = $settings['database'][$srv];
-    $conn = sqlsrv_connect($db_config['host'], [
-        "Database" => $db_config['name'], "Uid" => $db_config['user'], 
-        "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY), 
-        "TrustServerCertificate" => 1, "Encrypt" => 0
-    ]);
+    $admin_srv = $_SESSION['admin_server'] ?? 'mid';
+    $admin_server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
+    $db_config = $settings['database'][$admin_server_key]; 
+    
+    $conn = sqlsrv_connect($db_config['host'], ["Database" => $db_config['name'], "Uid" => $db_config['user'], "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY), "TrustServerCertificate" => 1, "Encrypt" => 0]);
+
+    if (!$conn) { echo "Database connection failed."; exit; }
 
     $stmt = sqlsrv_query($conn, "SELECT * FROM WebshopItems WHERE ItemType = ? ORDER BY ItemIndex", [$cat]);
-    
     echo '<table style="width:100%; border-collapse: collapse; font-size: 0.85em; text-align: left;">';
-    echo '<tr style="background:#ddd; border-bottom: 2px solid #aaa;">
-            <th style="padding: 5px;">ID</th><th style="padding: 5px;">Name</th>
-            <th style="padding: 5px;">Act</th><th style="padding: 5px;">Lck</th>
-            <th style="padding: 5px;">Skl</th><th style="padding: 5px;">Exc</th>
-            <th style="padding: 5px;">Lvl</th><th style="padding: 5px;">380</th>
-            <th style="padding: 5px;">Hrm</th><th style="padding: 5px;">Sck</th>
-            <th style="padding: 5px;">Anc</th>
-            <th style="padding: 5px; width:60px;">Price</th>
-            <th style="padding: 5px; width:50px;">MaxExc</th>
-            <th style="padding: 5px; width:50px;">MaxSck</th>
-          </tr>';
-    while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
-        $t = $row['ItemType']; $i = $row['ItemIndex'];
-        $name = str_replace('"', '', $row['ItemName']);
-        echo "<tr style='border-bottom: 1px solid #ddd;'>";
-        echo "<td style='padding: 5px;'>{$i}</td><td style='padding: 5px;'>{$name}</td>";
-        echo "<td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'IsActive', this)\" ".($row['IsActive'] ? 'checked':'')."></td>";
-        echo "<td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'AllowLuck', this)\" ".($row['AllowLuck'] ? 'checked':'')."></td>";
-        echo "<td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'AllowSkill', this)\" ".($row['AllowSkill'] ? 'checked':'')."></td>";
-        echo "<td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'AllowExc', this)\" ".($row['AllowExc'] ? 'checked':'')."></td>";
-        echo "<td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'AllowLevel', this)\" ".($row['AllowLevel'] ? 'checked':'')."></td>";
-        echo "<td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'Allow380', this)\" ".($row['Allow380'] ? 'checked':'')."></td>";
-        echo "<td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'AllowHarmony', this)\" ".($row['AllowHarmony'] ? 'checked':'')."></td>";
-        echo "<td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'AllowSocket', this)\" ".($row['AllowSocket'] ? 'checked':'')."></td>";
-        echo "<td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'AllowAncient', this)\" ".($row['AllowAncient'] ? 'checked':'')."></td>";
-        echo "<td style='padding: 5px;'><input type='number' min='0' style='width:50px; padding:3px;' value='{$row['BasePrice']}' onchange=\"updateItemData($t, $i, 'BasePrice', this)\"></td>";
-        echo "<td style='padding: 5px;'><input type='number' min='0' max='6' style='width:40px; padding:3px;' value='{$row['MaxExc']}' onchange=\"updateItemData($t, $i, 'MaxExc', this)\"></td>";
-        echo "<td style='padding: 5px;'><input type='number' min='0' max='5' style='width:40px; padding:3px;' value='{$row['MaxSocket']}' onchange=\"updateItemData($t, $i, 'MaxSocket', this)\"></td>";
-        echo "</tr>";
+    echo '<tr style="background:#ddd; border-bottom: 2px solid #aaa;"><th style="padding: 5px;">ID</th><th style="padding: 5px;">Name</th><th style="padding: 5px;">Act</th><th style="padding: 5px;">Lck</th><th style="padding: 5px;">Skl</th><th style="padding: 5px;">Exc</th><th style="padding: 5px;">Lvl</th><th style="padding: 5px;">380</th><th style="padding: 5px;">Hrm</th><th style="padding: 5px;">Sck</th><th style="padding: 5px;">Anc</th><th style="padding: 5px; width:60px;">Price</th><th style="padding: 5px; width:50px;">MaxExc</th><th style="padding: 5px; width:50px;">MaxSck</th></tr>';
+    if ($stmt) {
+        while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+            $t = $row['ItemType']; $i = $row['ItemIndex']; $name = str_replace('"', '', $row['ItemName']);
+            echo "<tr style='border-bottom: 1px solid #ddd;'><td style='padding: 5px;'>{$i}</td><td style='padding: 5px;'>{$name}</td><td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'IsActive', this)\" ".($row['IsActive'] ? 'checked':'')."></td><td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'AllowLuck', this)\" ".($row['AllowLuck'] ? 'checked':'')."></td><td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'AllowSkill', this)\" ".($row['AllowSkill'] ? 'checked':'')."></td><td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'AllowExc', this)\" ".($row['AllowExc'] ? 'checked':'')."></td><td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'AllowLevel', this)\" ".($row['AllowLevel'] ? 'checked':'')."></td><td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'Allow380', this)\" ".($row['Allow380'] ? 'checked':'')."></td><td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'AllowHarmony', this)\" ".($row['AllowHarmony'] ? 'checked':'')."></td><td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'AllowSocket', this)\" ".($row['AllowSocket'] ? 'checked':'')."></td><td style='padding: 5px;'><input type='checkbox' onchange=\"updateItemData($t, $i, 'AllowAncient', this)\" ".($row['AllowAncient'] ? 'checked':'')."></td><td style='padding: 5px;'><input type='number' min='0' style='width:50px; padding:3px;' value='{$row['BasePrice']}' onchange=\"updateItemData($t, $i, 'BasePrice', this)\"></td><td style='padding: 5px;'><input type='number' min='0' max='6' style='width:40px; padding:3px;' value='{$row['MaxExc']}' onchange=\"updateItemData($t, $i, 'MaxExc', this)\"></td><td style='padding: 5px;'><input type='number' min='0' max='5' style='width:40px; padding:3px;' value='{$row['MaxSocket']}' onchange=\"updateItemData($t, $i, 'MaxSocket', this)\"></td></tr>";
+        }
     }
     echo '</table>'; exit;
 }
 
 if (isset($_GET['action']) && $_GET['action'] === 'update_item_data') {
     $settings = json_decode(file_get_contents('../../Configuration/settings.json'), true);
-    $srv = ($_GET['server'] === 'hard_rate') ? 'hard_rate' : 'mid_rate';
-    $db_config = $settings['database'][$srv];
-    $conn = sqlsrv_connect($db_config['host'], ["Database" => $db_config['name'], "Uid" => $db_config['user'], "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY), "TrustServerCertificate" => 1, "Encrypt" => 0]);
     
+    $admin_srv = $_SESSION['admin_server'] ?? 'mid';
+    $admin_server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
+    $db_config = $settings['database'][$admin_server_key]; 
+
+    $conn = sqlsrv_connect($db_config['host'], ["Database" => $db_config['name'], "Uid" => $db_config['user'], "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY), "TrustServerCertificate" => 1, "Encrypt" => 0]);
     $allowed_cols = ['IsActive', 'AllowExc', 'AllowLevel', 'Allow380', 'AllowHarmony', 'AllowSocket', 'AllowAncient', 'BasePrice', 'MaxExc', 'MaxSocket', 'AllowLuck', 'AllowSkill'];
     $col = $_GET['col'];
     if (in_array($col, $allowed_cols)) {
-        $sql = "UPDATE WebshopItems SET $col = ? WHERE ItemType = ? AND ItemIndex = ?";
-        sqlsrv_query($conn, $sql, [(int)$_GET['val'], (int)$_GET['type'], (int)$_GET['index']]);
+        sqlsrv_query($conn, "UPDATE WebshopItems SET $col = ? WHERE ItemType = ? AND ItemIndex = ?", [(int)$_GET['val'], (int)$_GET['type'], (int)$_GET['index']]);
     }
     exit;
 }
@@ -110,6 +83,11 @@ if (isset($_GET['action']) && $_GET['action'] === 'update_item_data') {
 // --- POST FORM HANDLERS ---
 if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $settings_file = '../../Configuration/settings.json';
+    
+    if (!is_writable($settings_file) && $_POST['action'] !== 'upload_item_txt') {
+        die("<h2 style='color:red;'>CRITICAL ERROR: Permission Denied!</h2>");
+    }
+
     $settings = json_decode(file_get_contents($settings_file), true);
     $action = $_POST['action'] ?? '';
     $page = 'settings';
@@ -121,83 +99,183 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $amount = (int)$_POST['credit_amount'];
             $op = $_POST['operation']; 
             
-            $srv_choice = (isset($_POST['server_select']) && $_POST['server_select'] === 'hard') ? 'hard_rate' : 'mid_rate';
-            $db_config = $settings['database'][$srv_choice];
+            $admin_srv = $_SESSION['admin_server'] ?? 'mid';
+            $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
+            $db_config = $settings['database'][$server_key];
             
+            $conn = sqlsrv_connect($db_config['host'], ["Database" => $db_config['name'], "Uid" => $db_config['user'], "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY), "TrustServerCertificate" => 1, "Encrypt" => 0]);
+            if (!$conn) { die("Database Connection Failed for selected server."); }
+
+            sqlsrv_query($conn, "IF NOT EXISTS (SELECT 1 FROM WebCredits WHERE memb___id = ?) INSERT INTO WebCredits (memb___id, credits) VALUES (?, 0)", [$target_user, $target_user]);
+
+            if ($op == 'add') { $sql = "UPDATE WebCredits SET credits = credits + ? WHERE memb___id = ?"; } 
+            elseif ($op == 'minus') { $sql = "UPDATE WebCredits SET credits = CASE WHEN credits >= ? THEN credits - ? ELSE 0 END WHERE memb___id = ?"; $amount = [$amount, $amount]; } 
+            else { $sql = "UPDATE WebCredits SET credits = ? WHERE memb___id = ?"; }
+            
+            sqlsrv_query($conn, $sql, is_array($amount) ? array_merge($amount, [$target_user]) : [$amount, $target_user]);
+            sqlsrv_close($conn);
+            $page = 'user_settings';
+            $status = "Credits updated for " . htmlspecialchars($target_user);
+            break;
+
+        case 'save_webshop_prices':
+            $admin_srv = $_SESSION['admin_server'] ?? 'mid';
+            $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
+            if (!isset($settings['webshop'])) $settings['webshop'] = [];
+            $settings['webshop'][$server_key] = [
+                'price_level' => (int)$_POST['price_level'], 'price_exc' => (int)$_POST['price_exc'],
+                'price_luck_skill' => (int)$_POST['price_luck_skill'], 'price_380' => (int)$_POST['price_380'],
+                'price_harmony' => (int)$_POST['price_harmony'], 'price_socket' => (int)$_POST['price_socket'],
+                'price_ancient' => (int)$_POST['price_ancient']
+            ];
+            $page = 'user_settings';
+            break;
+            
+        case 'save_paymongo_settings':
+            $admin_srv = $_SESSION['admin_server'] ?? 'mid';
+            $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
+            if (!isset($settings['paymongo'])) $settings['paymongo'] = [];
+            $settings['paymongo'][$server_key] = [
+                'enabled' => isset($_POST['paymongo_enabled']), 'public_key' => trim($_POST['paymongo_public']),
+                'secret_key' => trim($_POST['paymongo_secret']), 'rate' => (int)$_POST['paymongo_rate']
+            ];
+            $page = 'donations';
+            break;
+
+        case 'save_paypal_settings':
+            $admin_srv = $_SESSION['admin_server'] ?? 'mid';
+            $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
+            if (!isset($settings['paypal'])) $settings['paypal'] = [];
+            $settings['paypal'][$server_key] = [
+                'enabled' => isset($_POST['paypal_enabled']), 'mode' => $_POST['paypal_mode'],
+                'client_id' => trim($_POST['paypal_client_id']), 'secret' => trim($_POST['paypal_secret']),
+                'currency' => strtoupper(trim($_POST['paypal_currency'])), 'rate' => (int)$_POST['paypal_rate']
+            ];
+            $page = 'donations';
+            break;
+
+        case 'save_qr_settings':
+            $admin_srv = $_SESSION['admin_server'] ?? 'mid';
+            $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
+            if (!isset($settings['qr_ph'])) $settings['qr_ph'] = [];
+            $settings['qr_ph'][$server_key] = [
+                'enabled' => isset($_POST['qr_enabled']), 'ratio' => (int)($_POST['qr_ratio'] ?? 100)
+            ];
+
+            if (isset($_FILES['qr_image']) && $_FILES['qr_image']['error'] == 0) {
+                $targetPath = '../../qr-ph-' . $server_key . '.png'; 
+                move_uploaded_file($_FILES['qr_image']['tmp_name'], $targetPath);
+            }
+            $page = 'donations';
+            break;  
+            
+        case 'save_economy':
+            $admin_srv = $_SESSION['admin_server'] ?? 'mid';
+            $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
+            $names = $_POST['item_names'] ?? []; $cols = $_POST['item_cols'] ?? [];
+            $tracked = [];
+            for ($i = 0; $i < count($names); $i++) {
+                if (!empty(trim($names[$i])) && !empty(trim($cols[$i]))) { $tracked[trim($names[$i])] = trim($cols[$i]); }
+            }
+            if (!isset($settings['economy_tracking'])) $settings['economy_tracking'] = [];
+            $settings['economy_tracking'][$server_key] = $tracked;
+            @unlink('../../Configuration/sidebar_cache_' . $server_key . '.json');
+            $page = 'economy';
+            break;
+		
+		case 'approve_order':
+            $order_id = (int)($_POST['order_id'] ?? 0);
+            $admin_srv = $_SESSION['admin_server'] ?? 'mid';
+            $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
+            $db_config = $settings['database'][$server_key];
+
+            // FIXED: Added Encrypt => 0
             $conn = sqlsrv_connect($db_config['host'], [
-                "Database" => $db_config['name'], "Uid" => $db_config['user'],
+                "Database" => $db_config['name'], 
+                "Uid" => $db_config['user'],
                 "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
                 "TrustServerCertificate" => 1, "Encrypt" => 0
             ]);
 
-            if (!$conn) { die("Database Connection Failed for selected server."); }
-
-            $checkSql = "IF NOT EXISTS (SELECT 1 FROM WebCredits WHERE memb___id = ?) INSERT INTO WebCredits (memb___id, credits) VALUES (?, 0)";
-            sqlsrv_query($conn, $checkSql, [$target_user, $target_user]);
-
-            if ($op == 'add') { 
-                $sql = "UPDATE WebCredits SET credits = credits + ? WHERE memb___id = ?"; 
-                $params = [$amount, $target_user]; 
-            } elseif ($op == 'minus') { 
-                $sql = "UPDATE WebCredits SET credits = CASE WHEN credits >= ? THEN credits - ? ELSE 0 END WHERE memb___id = ?"; 
-                $params = [$amount, $amount, $target_user]; 
-            } else { 
-                $sql = "UPDATE WebCredits SET credits = ? WHERE memb___id = ?"; 
-                $params = [$amount, $target_user]; 
+            if (!$conn) {
+                $status = 'Error: Database connection failed.';
+                $page = 'orders';
+                break;
             }
-            
-            sqlsrv_query($conn, $sql, $params);
-            sqlsrv_close($conn);
-            $page = 'user_settings';
-            $status = "Credits updated for " . htmlspecialchars($target_user) . " on " . ($srv_choice === 'hard_rate' ? 'Server 2' : 'Server 1');
+
+            $orderQuery = "SELECT * FROM PendingDonations WHERE ID = ? AND Status = 0";
+            $orderStmt = sqlsrv_query($conn, $orderQuery, [$order_id]);
+            $order = sqlsrv_fetch_array($orderStmt, SQLSRV_FETCH_ASSOC);
+
+            if ($order) {
+                $acc = $order['AccountID'];
+                $credsToAdd = (int)$order['CreditsToReceive'];
+
+                // FIXED: Safely check if the user already has a WebCredits row without using has_rows()
+                $check = sqlsrv_query($conn, "SELECT credits FROM WebCredits WHERE memb___id = ?", [$acc]);
+                $row = sqlsrv_fetch_array($check, SQLSRV_FETCH_ASSOC);
+                
+                if ($row) {
+                    sqlsrv_query($conn, "UPDATE WebCredits SET credits = credits + ? WHERE memb___id = ?", [$credsToAdd, $acc]);
+                } else {
+                    sqlsrv_query($conn, "INSERT INTO WebCredits (memb___id, credits) VALUES (?, ?)", [$acc, $credsToAdd]);
+                }
+
+                // Mark the order as Approved
+                sqlsrv_query($conn, "UPDATE PendingDonations SET Status = 1 WHERE ID = ?", [$order_id]);
+
+                sqlsrv_close($conn);
+                $status = "Success: Added $credsToAdd Credits to $acc.";
+            } else {
+                sqlsrv_close($conn);
+                $status = 'Error: Order not found or already processed.';
+            }
+            $page = 'orders';
             break;
 
-        case 'save_webshop_prices':
-            $settings['webshop']['mid_rate'] = [
-                'price_level' => (int)$_POST['mid_price_level'],
-                'price_exc' => (int)$_POST['mid_price_exc'],
-                'price_luck_skill' => (int)$_POST['mid_price_luck_skill'],
-                'price_380' => (int)$_POST['mid_price_380'],
-                'price_harmony' => (int)$_POST['mid_price_harmony'],
-                'price_socket' => (int)$_POST['mid_price_socket'],
-                'price_ancient' => (int)$_POST['mid_price_ancient']
-            ];
-            $settings['webshop']['hard_rate'] = [
-                'price_level' => (int)$_POST['hard_price_level'],
-                'price_exc' => (int)$_POST['hard_price_exc'],
-                'price_luck_skill' => (int)$_POST['hard_price_luck_skill'],
-                'price_380' => (int)$_POST['hard_price_380'],
-                'price_harmony' => (int)$_POST['hard_price_harmony'],
-                'price_socket' => (int)$_POST['hard_price_socket'],
-                'price_ancient' => (int)$_POST['hard_price_ancient']
-            ];
-            $page = 'user_settings';
+        case 'reject_order':
+            $order_id = (int)($_POST['order_id'] ?? 0);
+            $admin_srv = $_SESSION['admin_server'] ?? 'mid';
+            $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
+            $db_config = $settings['database'][$server_key];
+            
+            // FIXED: Added Encrypt => 0
+            $conn = sqlsrv_connect($db_config['host'], [
+                "Database" => $db_config['name'], 
+                "Uid" => $db_config['user'],
+                "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
+                "TrustServerCertificate" => 1, "Encrypt" => 0
+            ]);
+
+            if ($conn) {
+                sqlsrv_query($conn, "UPDATE PendingDonations SET Status = 2 WHERE ID = ?", [$order_id]);
+                sqlsrv_close($conn);
+                $status = 'Order Rejected successfully.';
+            } else {
+                $status = 'Error: Database connection failed.';
+            }
+            $page = 'orders';
             break;
+			
 
         case 'upload_item_txt':
             if (isset($_FILES['item_txt']) && $_FILES['item_txt']['error'] == 0) {
-                
                 $lines = file($_FILES['item_txt']['tmp_name'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
                 $itemsToInsert = [];
                 $section = -1;
 
-                // 1. Parse Item.txt
                 foreach ($lines as $index => $line) {
                     if ($index === 0) $line = preg_replace('/^[\xef\xbb\xbf]+/', '', $line); 
                     $line = trim($line);
-                    
                     if ($line === '' || strpos($line, '//') === 0) continue; 
                     if (strtolower($line) === 'end') { $section = -1; continue; }
                     
                     $secCheck = trim(explode('//', $line)[0]);
-                    if (is_numeric($secCheck) && strlen($secCheck) <= 2) { 
-                        $section = (int)$secCheck; continue; 
-                    }
+                    if (is_numeric($secCheck) && strlen($secCheck) <= 2) { $section = (int)$secCheck; continue; }
 
                     if ($section >= 0 && $section <= 15) {
                         if (preg_match('/^(\d+)\s+(?:-?\d+\s+){2}(\d+)\s+(\d+).*?"([^"]+)"/', $line, $matches)) {
                             $id = (int)$matches[1]; $w = (int)$matches[2]; $h = (int)$matches[3]; $name = $matches[4];
-                            // Add AncName1 and AncName2 to the default array
                             $itemsToInsert["$section-$id"] = [
                                 'type' => $section, 'id' => $id, 'name' => $name, 'w' => $w, 'h' => $h,
                                 'sck' => 0, 'maxSck' => 0, 'opt380' => 0, 'anc' => 0, 'ancName1' => null, 'ancName2' => null
@@ -206,62 +284,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     }
                 }
 
-                // 2. Map Sockets and 380
-                function parseExtraFile($fileKey, &$itemsArray, $flag, $maxSckFlag = false) {
-                    if (empty($_FILES[$fileKey]['tmp_name']) || $_FILES[$fileKey]['error'] != 0) return;
-                    $xLines = file($_FILES[$fileKey]['tmp_name'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-                    foreach ($xLines as $xL) {
-                        $xL = trim(explode('//', $xL)[0]); 
-                        $xL = trim($xL, " \t\n\r\0\x0B\xEF\xBB\xBF");
-                        if ($xL === '' || strtolower($xL) === 'end') continue;
-                        $parts = preg_split('/\s+/', $xL);
-                        if (count($parts) >= 2 && is_numeric($parts[0]) && is_numeric($parts[1])) {
-                            $key = (int)$parts[0].'-'.(int)$parts[1];
-                            if (isset($itemsArray[$key])) {
-                                $itemsArray[$key][$flag] = 1; 
-                                if ($maxSckFlag && isset($parts[2]) && is_numeric($parts[2])) {
-                                    $itemsArray[$key]['maxSck'] = (int)$parts[2];
-                                } elseif ($maxSckFlag) $itemsArray[$key]['maxSck'] = 5;
-                            }
-                        }
-                    }
-                }
-                parseExtraFile('socket_txt', $itemsToInsert, 'sck', true);
-                parseExtraFile('380_txt', $itemsToInsert, 'opt380');
-
-                // 3. Map Ancient Names!
-                $ancientNames = [];
-                if (!empty($_FILES['anc_opt_txt']['tmp_name'])) {
-                    $ancOptLines = file($_FILES['anc_opt_txt']['tmp_name'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-                    foreach ($ancOptLines as $l) {
-                        $l = trim(explode('//', $l)[0]); $l = trim($l, " \t\n\r\0\x0B\xEF\xBB\xBF");
-                        if ($l === '' || strtolower($l) === 'end') continue;
-                        // Regex matches: 1  "Warrior"
-                        if (preg_match('/^(\d+)\s+"([^"]+)"/', $l, $m)) {
-                            $ancientNames[(int)$m[1]] = $m[2];
-                        }
-                    }
-                }
-
-                if (!empty($_FILES['ancient_txt']['tmp_name'])) {
-                    $ancLines = file($_FILES['ancient_txt']['tmp_name'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-                    foreach ($ancLines as $l) {
-                        $l = trim(explode('//', $l)[0]); $l = trim($l, " \t\n\r\0\x0B\xEF\xBB\xBF");
-                        if ($l === '' || strtolower($l) === 'end') continue;
-                        $p = preg_split('/\s+/', $l);
-                        // Format: Section Type StatType OptIndex1 OptIndex2
-                        if (count($p) >= 5 && is_numeric($p[0]) && is_numeric($p[1])) {
-                            $key = (int)$p[0].'-'.(int)$p[1];
-                            if (isset($itemsToInsert[$key])) {
-                                $itemsToInsert[$key]['anc'] = 1;
-                                $itemsToInsert[$key]['ancName1'] = $ancientNames[(int)$p[3]] ?? null;
-                                $itemsToInsert[$key]['ancName2'] = $ancientNames[(int)$p[4]] ?? null;
-                            }
-                        }
-                    }
-                }
-
-                // 4. Send to Databases
                 $target = $_POST['upload_target'] ?? 'both';
                 $servers = ($target === 'both') ? ['mid_rate', 'hard_rate'] : [$target];
                 $totalParsed = count($itemsToInsert);
@@ -278,28 +300,44 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     ]);
 
                     if ($conn) {
+                        $createTableSql = "IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='WebshopItems' and xtype='U')
+                        CREATE TABLE WebshopItems (
+                            ID int IDENTITY(1,1) PRIMARY KEY, ItemType int, ItemIndex int, ItemName varchar(100), Width int, Height int,
+                            BasePrice int DEFAULT 100, IsActive bit DEFAULT 1, AllowExc bit DEFAULT 1, AllowLevel bit DEFAULT 1,
+                            Allow380 bit DEFAULT 0, AllowHarmony bit DEFAULT 1, AllowSocket bit DEFAULT 0, MaxExc int DEFAULT 6, MaxSocket int DEFAULT 0,
+                            AllowLuck bit DEFAULT 1, AllowSkill bit DEFAULT 1, AllowAncient bit DEFAULT 0, AncName1 varchar(50), AncName2 varchar(50)
+                        )";
+                        
+                        $create = sqlsrv_query($conn, $createTableSql);
+                        if ($create === false) { die("<h2 style='color:red;'>SQL Table Error on $srv</h2><pre>".print_r(sqlsrv_errors(), true)."</pre>"); }
+
                         sqlsrv_query($conn, "TRUNCATE TABLE WebshopItems");
                         sqlsrv_begin_transaction($conn);
                         
+                        $hasErrors = false;
                         foreach ($itemsToInsert as $i) {
                             $sql = "INSERT INTO WebshopItems (ItemType, ItemIndex, ItemName, Width, Height, BasePrice, AllowExc, AllowLevel, Allow380, AllowHarmony, AllowSocket, MaxExc, MaxSocket, AllowLuck, AllowSkill, AllowAncient, AncName1, AncName2) VALUES (?, ?, ?, ?, ?, 100, 1, 1, ?, 1, ?, 6, ?, 1, 1, ?, ?, ?)";
-                            sqlsrv_query($conn, $sql, [
+                            $stmt = sqlsrv_query($conn, $sql, [
                                 $i['type'], $i['id'], $i['name'], $i['w'], $i['h'], 
                                 $i['opt380'], $i['sck'], $i['maxSck'], $i['anc'], $i['ancName1'], $i['ancName2']
                             ]);
+                            if ($stmt === false) {
+                                $hasErrors = true;
+                                echo "<h2 style='color:red;'>SQL Insert Error on Item: {$i['name']} ($srv)</h2><pre>";
+                                die(print_r(sqlsrv_errors(), true));
+                            }
                         }
                         
-                        sqlsrv_commit($conn);
+                        if ($hasErrors) { sqlsrv_rollback($conn); } else { sqlsrv_commit($conn); $serversUpdated++; }
                         sqlsrv_close($conn);
-                        $serversUpdated++;
+                    } else {
+                        die("<h2 style='color:red;'>Database Connection Error on $srv</h2><pre>".print_r(sqlsrv_errors(), true)."</pre>");
                     }
                 }
                 
-                $status = ($serversUpdated > 0) ? "Successfully mapped & synced $totalParsed items to $serversUpdated database(s)!" : "Error: Parsed $totalParsed items but could not connect to databases.";
+                $status = ($serversUpdated > 0) ? "Successfully synced $totalParsed items!" : "Error: Could not connect to databases.";
 
-            } else { 
-                $status = "Error uploading Item.txt. Code: " . ($_FILES['item_txt']['error'] ?? 'Unknown'); 
-            }
+            } else { $status = "Error uploading Item.txt."; }
             $page = 'user_settings';
             break;
 
@@ -319,60 +357,40 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             }
             $settings['website_title'] = $_POST['website_title'];
             $settings['show_online_count'] = (bool)($_POST['show_online'] ?? true);
-            $settings['mid_rate_server']['name'] = $_POST['mid_name'];
+            $settings['server_names']['mid_rate'] = $_POST['mid_name']; 
             $settings['mid_rate_server']['address'] = $_POST['mid_address'];
             $settings['mid_rate_server']['port'] = (int)$_POST['mid_port'];
             $settings['mid_rate_server']['visible'] = (bool)($_POST['mid_visible'] ?? true); 
-            $settings['hard_rate_server']['name'] = $_POST['hard_name'];
+            $settings['server_names']['hard_rate'] = $_POST['hard_name'];
             $settings['hard_rate_server']['address'] = $_POST['hard_address'];
             $settings['hard_rate_server']['port'] = (int)$_POST['hard_port'];
             $settings['hard_rate_server']['visible'] = (bool)($_POST['hard_visible'] ?? true);
             $page = 'settings';
             break;
 
-        case 'save_links':
-            $settings['download_link_1']['label'] = $_POST['label1'];
-            $settings['download_link_1']['url'] = $_POST['url1'];
-            $settings['download_link_2']['label'] = $_POST['label2'];
-            $settings['download_link_2']['url'] = $_POST['url2'];
-            $page = 'links';
-            break;
-
-        case 'save_security':
-            $settings['security']['session_timeout_minutes'] = (int)$_POST['session_timeout_minutes'];
-            $settings['security']['user_session_timeout_minutes'] = (int)$_POST['user_session_timeout_minutes']; 
-            $page = 'security';
-            break;
-
-        case 'save_database':
-            $settings['database']['mid_rate']['host'] = $_POST['mid_db_host'];
-            $settings['database']['mid_rate']['name'] = $_POST['mid_db_name']; 
-            $settings['database']['mid_rate']['user'] = $_POST['mid_db_user'];
-            if (!empty($_POST['mid_db_pass'])) $settings['database']['mid_rate']['pass_encrypted'] = encrypt_pass($_POST['mid_db_pass'], ENCRYPTION_KEY);
+        case 'save_user_settings': 
+            $admin_srv = $_SESSION['admin_server'] ?? 'mid';
+            $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
             
-            $settings['database']['hard_rate']['host'] = $_POST['hard_db_host'];
-            $settings['database']['hard_rate']['name'] = $_POST['hard_db_name']; 
-            $settings['database']['hard_rate']['user'] = $_POST['hard_db_user'];
-            if (!empty($_POST['hard_db_pass'])) $settings['database']['hard_rate']['pass_encrypted'] = encrypt_pass($_POST['hard_db_pass'], ENCRYPTION_KEY);
-            $page = 'database';
-            break;
+            if (!isset($settings['user_dashboard'])) $settings['user_dashboard'] = [];
+            $settings['user_dashboard'][$server_key] = [
+                'enable_webshop' => isset($_POST['enable_webshop']), 'enable_reset' => isset($_POST['enable_reset']),
+                'enable_reset_stats' => isset($_POST['enable_reset_stats']), 'enable_clear_pk' => isset($_POST['enable_clear_pk']),
+                'enable_reset_master' => isset($_POST['enable_reset_master']), 'enable_unstuck' => isset($_POST['enable_unstuck'])
+            ];
             
-        case 'save_user_dashboard':
-            $settings['user_dashboard']['enable_webshop'] = isset($_POST['enable_webshop']);
-            $settings['user_dashboard']['enable_reset'] = isset($_POST['enable_reset']);
-            $settings['user_dashboard']['enable_reset_stats'] = isset($_POST['enable_reset_stats']);
-            $settings['user_dashboard']['enable_clear_pk'] = isset($_POST['enable_clear_pk']);
-            $settings['user_dashboard']['enable_reset_master'] = isset($_POST['enable_reset_master']);
-            $settings['user_dashboard']['enable_unstuck'] = isset($_POST['enable_unstuck']);
-            $settings['conversion_rates']['wcoinc'] = (int)$_POST['rate_wcoinc'];
-            $settings['conversion_rates']['wcoinp'] = (int)$_POST['rate_wcoinp'];
-            $settings['conversion_rates']['goblin'] = (int)$_POST['rate_goblin'];
+            if (isset($_POST['rate_wcoinc'])) {
+                $settings['conversion_rates']['wcoinc'] = (int)$_POST['rate_wcoinc'];
+                $settings['conversion_rates']['wcoinp'] = (int)$_POST['rate_wcoinp'];
+                $settings['conversion_rates']['goblin'] = (int)$_POST['rate_goblin'];
+            }
             $page = 'user_settings';
             break;  
     }
     
-    if ($action !== 'manage_user_credits' && $action !== 'upload_item_txt') {
-        file_put_contents($settings_file, json_encode($settings, JSON_PRETTY_PRINT));
+    if (!in_array($action, ['manage_user_credits', 'upload_item_txt', 'approve_order', 'reject_order'])) {
+        $saveResult = file_put_contents($settings_file, json_encode($settings, JSON_PRETTY_PRINT));
+        if ($saveResult === false) { die("<h2 style='color:red;'>Save Failed</h2><p>Could not write to settings.json.</p>"); }
     }
     
     header('Location: ../dashboard.php?page=' . $page . '&status=' . urlencode($status));
