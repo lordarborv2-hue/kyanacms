@@ -1,76 +1,129 @@
-# ⚔️ MU Online Advanced Webshop & CMS
+This is a massive milestone! Uploading your project to GitHub is a great way to show off what you've built, and having a polished README.md is what separates a good project from a great one.
 
-A lightweight, highly advanced Content Management System and Webshop built specifically for MU Online private servers. Written in PHP and optimized for Microsoft SQL Server, this CMS features full dual-server support, an automated `.txt` file configuration parser, and a dynamic hex-injected Webshop.
+Since your dashboard is specifically built for Mu Online (using MS SQL Server) and has advanced automated payment gateways, we need to make sure the installation instructions are incredibly clear for other server owners who want to use it.
 
-## ✨ Key Features
+Here is a complete, professional README.md file you can copy and paste directly into GitHub.
 
-### 🛒 Advanced Hex Webshop
-* **Direct-to-Warehouse Delivery:** Uses a custom "Tetris Algorithm" to automatically find empty slots in the player's in-game warehouse and safely inject the item Hex string.
-* **Full Item Customization:** Players can add Level, Luck, Skill, Excellent Options, Sockets, 380 Options, Harmony (Yellow Option), and Ancient Tier bonuses.
-* **Dynamic Ancient Sets:** The Webshop dynamically reads the Ancient Set name (e.g., "Kantata" or "Warrior") and displays the correct stamina tiers (+5 or +10).
-* **Offline Protection:** Automatically detects the "Ghost Connection" bug and prevents players from buying items while their `ConnectStat` is stuck online.
+Mu Online Advanced User Dashboard & Webshop
+A modern, fully-featured User Dashboard, Webshop, and Admin Control Panel designed for Mu Online private servers. This dashboard features a secure PHP backend, a dynamic JavaScript frontend, and fully automated donation systems supporting PayPal and PayMongo (GCash, Maya, QR Ph, and Cards).
 
-### ⚙️ Automated Admin Uploader
-Stop manually checking boxes for hundreds of items! The Admin Control Panel includes an automated parser. Just upload your server's text files:
-* `Item.txt` (Base sizes and names)
-* `SocketItemType.txt` (Auto-detects max sockets)
-* `380ItemType.txt` (Auto-enables PvP options)
-* `SetItemType.txt` & `SetItemOption.txt` (Auto-maps Ancient Set names to specific items)
+✨ Features
+💳 Automated Donations:
 
-### 👥 User Dashboard & Character Management
-* **Dual-Server Support:** Manage characters and credits across Server 1 (Mid-Rate) and Server 2 (Hard-Rate) seamlessly.
-* **Self-Service Tools:** Players can Reset Characters, Reset Stats, Clear PK status, Reset Master Levels, and Unstuck their characters.
-* **Currency Converter:** Convert WebCredits into WCoinC, WCoinP, or GoblinPoints dynamically based on Admin-defined exchange rates.
+PayMongo Integration: Fully automated GCash, Maya, and Credit Card payments via secure Webhooks.
 
----
+PayPal Integration: Automated PayPal checkout and credit delivery.
 
-## 📋 Prerequisites
+Manual QR Ph: Allows players to upload screenshot proofs for manual Admin approval.
 
-To run this CMS on your production server, you need the following environment:
-* **Web Server:** Windows IIS, Apache (XAMPP/Laragon), or Nginx.
-* **PHP:** PHP 7.4 or PHP 8.x
-* **Required Extensions:** `sqlsrv`, `openssl`, `mbstring`, `fileinfo`
-* **Database:** Microsoft SQL Server (2008 R2, 2012, 2017, 2019, etc.)
-* **Microsoft ODBC Driver:** ODBC Driver 17 or 18 for SQL Server installed on the host machine.
+🛒 Advanced Webshop:
 
----
+Dynamic pricing based on item configurations.
 
-## 🚀 Installation Guide
+Supports Item Level, Luck, Skill, Excellent Options, 380 Options, Harmony, Sockets, and Ancient options.
 
-### 1. Database Setup
-1. Open SQL Server Management Studio (SSMS).
-2. Select your MU Online database.
-3. Run the provided SQL installation script to create the custom `WebCredits` and `WebshopItems` tables. *(If using a dual-server setup, run this on both databases).*
+Direct-to-warehouse or direct-to-character delivery system (depending on your server's database structure).
 
-### 2. Web Server Setup
-1. Clone or download this repository into your web server's public directory (e.g., `htdocs` or `www`).
-2. Ensure the web server has **Write/Modify permissions** for the following folders:
-   * `/Configuration/` (to save `settings.json`)
-   * `/uploads/` (for custom logos and favicons)
+⚙️ Character Management:
 
-### 3. Initial Configuration
-1. Navigate to the Admin Control Panel via your browser (`http://your-ip/AdminCP/`).
-2. Log in using the default credentials.
-3. Go to **Settings -> Database** and input your SQL Server credentials for Server 1 and Server 2.
-4. Save the settings.
+Reset Character & Reset Stats
 
-### 4. Populate the Webshop
-1. In the Admin Panel, go to **User Settings -> Upload Webshop Files**.
-2. Select your server's `Item.txt`, `SocketItemType.txt`, `380ItemType.txt`, `SetItemType.txt`, and `SetItemOption.txt`.
-3. Click **Parse & Upload**. The CMS will take ~2 seconds to map all your items, limits, and options to the database automatically!
+Clear PK Status
 
----
+Reset Master Level
 
-## 🛠️ Built With
-* **Backend:** PHP (Vanilla)
-* **Frontend:** HTML5, CSS3, Vanilla JavaScript
-* **Database:** Microsoft SQL Server (T-SQL / sqlsrv)
+Unstuck Character
 
-## 📸 Screenshots
-*(Optional: Add images of your Webshop, Admin Panel, and User Dashboard here!)*
-* `![User Dashboard](link_to_image)`
-* `![Admin Panel](link_to_image)`
+💱 Economy & Tools:
 
-## ⚠️ Important Notes
-* Ensure players are completely logged out of the game before using the Webshop to prevent database deadlocks or item duping.
-* The `user-action.php` script contains a built-in fix for the MU Online "Ghost Connection" bug when a player uses the Unstuck feature.
+Convert WebCredits to in-game currencies (WCoinC, WCoinP, GoblinPoints).
+
+Live sidebar statistics (Top Rankings, Class Distribution, Server Jewel Economy).
+
+Secure Change Password functionality.
+
+🛡️ Admin Control Panel:
+
+Toggle modules on/off instantly without touching code.
+
+Manage multi-server setups (e.g., Mid Rate vs. Hard Rate).
+
+Configure API keys and currency conversion rates via a secure UI.
+
+📋 Prerequisites
+Before installing, ensure your web server meets the following requirements:
+
+OS: Windows Server (IIS) or Windows/Linux with XAMPP/WAMP.
+
+PHP: PHP 7.4 or PHP 8.x
+
+Extensions: * sqlsrv and pdo_sqlsrv (Required to connect to MS SQL Server).
+
+curl (Required for PayPal and PayMongo APIs).
+
+Database: Microsoft SQL Server (Standard for Mu Online).
+
+🚀 Installation Guide
+Step 1: Download & Extract
+Download or clone this repository.
+
+Extract the files into your web server's public directory (e.g., C:\xampp\htdocs\ or C:\inetpub\wwwroot\).
+
+Step 2: Database Preparation
+The donation system requires a table to store the players' WebCredits. Run this query in your SQL Server Management Studio (SSMS) inside your MuOnline database:
+
+SQL
+CREATE TABLE WebCredits (
+    memb___id varchar(10) NOT NULL,
+    credits int NOT NULL DEFAULT 0,
+    PRIMARY KEY (memb___id)
+);
+(Note: If your server uses a different table or column for web credits, you will need to update the SQL queries inside Configuration/paymongo-webhook.php and Configuration/paypal-capture.php).
+
+Step 3: Configure the Database Connection
+Open the config.php (or equivalent database connection file in your project).
+
+Set your SQL Server credentials (Host, Database Name, Username, and Password).
+
+If your project uses encrypted passwords in settings.json, ensure your ENCRYPTION_KEY and ENCRYPTION_CIPHER in the config file match your setup.
+
+Step 4: Admin CP Setup
+Navigate to the Admin Control Panel in your browser (e.g., http://your-server-ip/AdminCP/).
+
+Log in using your Admin credentials.
+
+Configure your server settings, API keys (PayPal/PayMongo), and Webshop pricing.
+
+Save the configuration. This will generate/update the Configuration/settings.json file.
+
+🔗 PayMongo Webhook Setup (Crucial for Auto-Donations)
+For PayMongo to automatically deliver credits when a player pays via GCash or Card, you must register your webhook URL in your PayMongo Dashboard.
+
+Ensure your website is hosted on a live, public IP/Domain (Webhooks do not work on localhost without a tunnel like Ngrok).
+
+Log in to your PayMongo Dashboard.
+
+Navigate to Developers -> Webhooks.
+
+Click Create Webhook.
+
+Set the Endpoint URL to point to your webhook file:
+https://your-website.com/Configuration/paymongo-webhook.php
+
+Under Events, check the box for link.payment.paid.
+
+Click Create.
+
+(Important: PayMongo separates Live Mode and Test Mode. If you are testing, make sure your dashboard is in "Test Mode" when you create the webhook!)
+
+⚠️ Security Recommendations
+Protect settings.json: Your settings.json file stores your encrypted database passwords and API keys. Ensure your web server (IIS/Apache) blocks direct URL access to .json files in the Configuration/ folder.
+
+Change Default Admin Passwords: Immediately change any default administrative passwords provided in the base script.
+
+SSL/HTTPS: You must use an SSL Certificate (HTTPS). Modern APIs like PayMongo and PayPal require secure connections.
+
+📝 License & Credits
+Developed by [Your GitHub Username / Name]
+
+Built for the Mu Online private server community.
