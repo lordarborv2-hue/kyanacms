@@ -1,8 +1,8 @@
 <?php
 header('Content-Type: application/json');
 session_start();
-error_reporting(0);
-require_once '../config.php';
+error_reporting(0); 
+require_once '../config.php'; // Inherits decrypt_data globally
 
 if (!isset($_SESSION['user_loggedin'])) {
     echo json_encode(['success' => false, 'message' => 'Not logged in.']); 
@@ -11,21 +11,20 @@ if (!isset($_SESSION['user_loggedin'])) {
 
 $settings = json_decode(file_get_contents('settings.json'), true);
 
-// Bulletproof Session Check to ensure it uses the correct database and pricing array
+// Bulletproof Session Check
 $user_sess = strtolower($_SESSION['user_server'] ?? '');
 $server_key = (strpos($user_sess, 'hard') !== false || strpos($user_sess, '2') !== false) ? 'hard_rate' : 'mid_rate';
 
 $db_config = $settings['database'][$server_key];
 
-function decrypt_pass($g, $k) {
-    list($d, $i) = explode('::', base64_decode($g), 2);
-    return openssl_decrypt($d, ENCRYPTION_CIPHER, $k, 0, $i);
-}
+// REMOVED: Local decrypt_pass function to prevent "Cannot redeclare" error
 
 $conn = sqlsrv_connect($db_config['host'], [
-    "Database" => $db_config['name'], "Uid" => $db_config['user'],
-    "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
-    "TrustServerCertificate" => 1
+    "Database" => $db_config['name'], 
+    "Uid" => $db_config['user'],
+    "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY), // Using global function
+    "TrustServerCertificate" => 1,
+    "Encrypt" => 0
 ]);
 
 if (!$conn) {

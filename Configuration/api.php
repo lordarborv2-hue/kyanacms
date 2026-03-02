@@ -3,12 +3,6 @@ header('Content-Type: application/json');
 require_once '../config.php';
 $settings = json_decode(file_get_contents('settings.json'), true);
 
-function decrypt_pass($garbled, $key) {
-    if (empty($garbled)) return '';
-    list($encrypted_data, $iv) = explode('::', base64_decode($garbled), 2);
-    return openssl_decrypt($encrypted_data, ENCRYPTION_CIPHER, $key, 0, $iv);
-}
-
 $serverType = $_GET['server'] ?? '';
 if ($serverType === 'mid') {
     $db_config = $settings['database']['mid_rate'];
@@ -24,7 +18,7 @@ if ($serverType === 'mid') {
 $connectionOptions = [
     "Database" => $db_name,
     "Uid" => $db_config['user'],
-    "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
+    "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY),
     "CharacterSet" => "UTF-8",
     "TrustServerCertificate" => 1,
     "Encrypt" => 0

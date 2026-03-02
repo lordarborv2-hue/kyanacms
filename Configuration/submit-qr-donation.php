@@ -35,15 +35,11 @@ if (move_uploaded_file($_FILES['proof']['tmp_name'], $targetFilePath)) {
     $server_key = (isset($_SESSION['user_server']) && $_SESSION['user_server'] === 'hard') ? 'hard_rate' : 'mid_rate';
     $db_config = $settings['database'][$server_key];
 
-    function decrypt_pass($g, $k) { 
-        list($d, $i) = explode('::', base64_decode($g), 2); 
-        return openssl_decrypt($d, ENCRYPTION_CIPHER, $k, 0, $i); 
-    }
 
     $conn = sqlsrv_connect($db_config['host'], [
         "Database" => $db_config['name'], 
         "Uid" => $db_config['user'],
-        "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
+        "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY),
         "TrustServerCertificate" => 1
     ]);
 

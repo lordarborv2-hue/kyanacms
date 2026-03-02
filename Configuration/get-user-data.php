@@ -18,11 +18,6 @@ if (!isset($_SESSION['user_loggedin']) || $_SESSION['user_loggedin'] !== true) {
     echo json_encode(['success' => false, 'error' => 'auth_required']); exit;
 }
 
-function decrypt_pass($garbled, $key) {
-    if (empty($garbled)) return '';
-    list($encrypted_data, $iv) = explode('::', base64_decode($garbled), 2);
-    return openssl_decrypt($encrypted_data, ENCRYPTION_CIPHER, $key, 0, $iv);
-}
 
 function getClassName($code) {
     $classes = [
@@ -51,7 +46,7 @@ if ($server === 'mid') {
 $connectionOptions = [
     "Database" => $db_name,
     "Uid" => $db_config['user'],
-    "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
+    "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY), // Use global function
     "CharacterSet" => "UTF-8",
     "TrustServerCertificate" => 1,
     "Encrypt" => 0
@@ -99,8 +94,14 @@ if ($charStmt) {
 // Ensure the server key matches the JSON configuration keys we save in AdminCP
 $server_key = ($server === 'mid') ? 'mid_rate' : 'hard_rate';
 
-// Get the specific settings for the user's active server, fallback to default if empty
 $paypal_config = $settings['paypal'][$server_key] ?? ['enabled' => false];
+
+// --- CRITICAL: Decrypt for the Frontend ---
+if (!empty($paypal_config['client_id'])) {
+    // Decrypt so the JavaScript SDK gets the real "AZ..." ID
+    $paypal_config['client_id'] = decrypt_data($paypal_config['client_id'], ENCRYPTION_KEY);
+}
+
 $qr_ph_config = $settings['qr_ph'][$server_key] ?? ['enabled' => false, 'ratio' => 100];
 
 echo json_encode([

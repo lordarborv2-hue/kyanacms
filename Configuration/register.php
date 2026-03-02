@@ -8,11 +8,6 @@ $settings_file = 'settings.json';
 if (!file_exists($settings_file)) { echo json_encode(['success' => false, 'message' => 'Configuration file not found.']); exit; }
 $settings = json_decode(file_get_contents($settings_file), true);
 
-function decrypt_pass($garbled, $key) {
-    if (empty($garbled)) return '';
-    list($encrypted_data, $iv) = explode('::', base64_decode($garbled), 2);
-    return openssl_decrypt($encrypted_data, ENCRYPTION_CIPHER, $key, 0, $iv);
-}
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') { echo json_encode(['success' => false, 'message' => 'Invalid request method.']); exit; }
 
@@ -39,7 +34,7 @@ if ($server === 'mid') {
 $connectionOptions = [
     "Database" => $db_name,
     "Uid" => $db_config['user'],
-    "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
+    "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY), // Use global function
     "CharacterSet" => "UTF-8",
     "TrustServerCertificate" => 1, 
     "Encrypt" => 0

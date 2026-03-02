@@ -6,6 +6,8 @@ session_start();
 error_reporting(E_ALL);
 ini_set('display_errors', 0); // Keep 0 so it doesn't break JSON, we will log it instead
 
+require_once '../config.php'; // Included to grab the decryption tools
+
 if (!isset($_SESSION['user_loggedin'])) {
     echo json_encode(['success' => false, 'message' => 'Please log in first.']);
     exit;
@@ -21,6 +23,9 @@ if (!$paymongo || empty($paymongo['enabled']) || empty($paymongo['secret_key']))
     echo json_encode(['success' => false, 'message' => 'PayMongo is currently disabled.']);
     exit;
 }
+
+// Decrypt the secure PayMongo API Key
+$paymongo_secret = decrypt_data($paymongo['secret_key'], ENCRYPTION_KEY);
 
 // Get requested credits and calculate PHP Cost
 $credits_requested = (int)($_POST['credits'] ?? 0);
@@ -39,7 +44,6 @@ if ($amount_php < 1) {
     exit;
 }
 
-// Convert to CENTS (e.g. 1 PHP = 100 cents)
 // Convert to CENTS (e.g. 1 PHP = 100 cents)
 $amount_cents = (int)ceil($amount_php * 100);
 
@@ -68,7 +72,7 @@ curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($payload));
 curl_setopt($ch, CURLOPT_HTTPHEADER, [
     'accept: application/json',
     'content-type: application/json',
-    'authorization: Basic ' . base64_encode($paymongo['secret_key'] . ':')
+    'authorization: Basic ' . base64_encode($paymongo_secret . ':') // Using decrypted key
 ]);
 
 $response = curl_exec($ch);

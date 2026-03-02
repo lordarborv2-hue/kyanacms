@@ -6,18 +6,6 @@ ini_set('display_errors', 1);
 if (!isset($_SESSION['loggedin']) || $_SESSION['loggedin'] !== true) { die('Access Denied.'); }
 require_once '../../config.php';
 
-function encrypt_pass($password, $key) {
-    $iv = openssl_random_pseudo_bytes(openssl_cipher_iv_length(ENCRYPTION_CIPHER));
-    $encrypted = openssl_encrypt($password, ENCRYPTION_CIPHER, $key, 0, $iv);
-    return base64_encode($encrypted . '::' . $iv);
-}
-
-function decrypt_pass($garbled, $key) {
-    if (empty($garbled)) return '';
-    list($encrypted_data, $iv) = explode('::', base64_decode($garbled), 2);
-    return openssl_decrypt($encrypted_data, ENCRYPTION_CIPHER, $key, 0, $iv);
-}
-
 // --- AJAX HANDLERS ---
 if (isset($_GET['action']) && $_GET['action'] === 'lookup_credits') {
     $settings = json_decode(file_get_contents('../../Configuration/settings.json'), true);
@@ -28,7 +16,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'lookup_credits') {
     $db_config = $settings['database'][$admin_server_key]; 
     
     if (empty($db_config['host'])) { echo json_encode(['success' => false]); exit; }
-    $conn = sqlsrv_connect($db_config['host'], ["Database" => $db_config['name'], "Uid" => $db_config['user'], "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY), "TrustServerCertificate" => 1, "Encrypt" => 0]);
+    $conn = sqlsrv_connect($db_config['host'], ["Database" => $db_config['name'], "Uid" => $db_config['user'], "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY), "TrustServerCertificate" => 1, "Encrypt" => 0]);
     if (!$conn) { echo json_encode(['success' => false]); exit; }
     
     $sql = "SELECT credits FROM WebCredits WHERE memb___id = ?";
@@ -48,7 +36,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'load_category_items') {
     $admin_server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
     $db_config = $settings['database'][$admin_server_key]; 
     
-    $conn = sqlsrv_connect($db_config['host'], ["Database" => $db_config['name'], "Uid" => $db_config['user'], "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY), "TrustServerCertificate" => 1, "Encrypt" => 0]);
+    $conn = sqlsrv_connect($db_config['host'], ["Database" => $db_config['name'], "Uid" => $db_config['user'], "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY), "TrustServerCertificate" => 1, "Encrypt" => 0]);
 
     if (!$conn) { echo "Database connection failed."; exit; }
 
@@ -71,7 +59,7 @@ if (isset($_GET['action']) && $_GET['action'] === 'update_item_data') {
     $admin_server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
     $db_config = $settings['database'][$admin_server_key]; 
 
-    $conn = sqlsrv_connect($db_config['host'], ["Database" => $db_config['name'], "Uid" => $db_config['user'], "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY), "TrustServerCertificate" => 1, "Encrypt" => 0]);
+    $conn = sqlsrv_connect($db_config['host'], ["Database" => $db_config['name'], "Uid" => $db_config['user'], "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY), "TrustServerCertificate" => 1, "Encrypt" => 0]);
     $allowed_cols = ['IsActive', 'AllowExc', 'AllowLevel', 'Allow380', 'AllowHarmony', 'AllowSocket', 'AllowAncient', 'BasePrice', 'MaxExc', 'MaxSocket', 'AllowLuck', 'AllowSkill'];
     $col = $_GET['col'];
     if (in_array($col, $allowed_cols)) {
@@ -103,7 +91,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
             $db_config = $settings['database'][$server_key];
             
-            $conn = sqlsrv_connect($db_config['host'], ["Database" => $db_config['name'], "Uid" => $db_config['user'], "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY), "TrustServerCertificate" => 1, "Encrypt" => 0]);
+            $conn = sqlsrv_connect($db_config['host'], ["Database" => $db_config['name'], "Uid" => $db_config['user'], "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY), "TrustServerCertificate" => 1, "Encrypt" => 0]);
             if (!$conn) { die("Database Connection Failed for selected server."); }
 
             sqlsrv_query($conn, "IF NOT EXISTS (SELECT 1 FROM WebCredits WHERE memb___id = ?) INSERT INTO WebCredits (memb___id, credits) VALUES (?, 0)", [$target_user, $target_user]);
@@ -135,12 +123,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $admin_srv = $_SESSION['admin_server'] ?? 'mid';
             $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
             if (!isset($settings['paymongo'])) $settings['paymongo'] = [];
-            $settings['paymongo'][$server_key] = [
-                'enabled' => isset($_POST['paymongo_enabled']), 
-                'public_key' => trim($_POST['paymongo_public']),
-                'secret_key' => trim($_POST['paymongo_secret']), 
-                'rate' => (int)$_POST['paymongo_rate']
-            ];
+            if (!isset($settings['paymongo'][$server_key])) $settings['paymongo'][$server_key] = [];
+            
+            $settings['paymongo'][$server_key]['enabled'] = isset($_POST['paymongo_enabled']);
+            $settings['paymongo'][$server_key]['rate'] = (int)$_POST['paymongo_rate'];
+            
+            $pm_pub = trim($_POST['paymongo_public']);
+            $pm_sec = trim($_POST['paymongo_secret']);
+            // Only update and encrypt if the admin actually typed something new into the box
+            if (!empty($pm_pub)) $settings['paymongo'][$server_key]['public_key'] = encrypt_data($pm_pub, ENCRYPTION_KEY);
+            if (!empty($pm_sec)) $settings['paymongo'][$server_key]['secret_key'] = encrypt_data($pm_sec, ENCRYPTION_KEY);
+            
             $page = 'donations';
             break;
 
@@ -148,11 +141,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $admin_srv = $_SESSION['admin_server'] ?? 'mid';
             $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
             if (!isset($settings['paypal'])) $settings['paypal'] = [];
-            $settings['paypal'][$server_key] = [
-                'enabled' => isset($_POST['paypal_enabled']), 'mode' => $_POST['paypal_mode'],
-                'client_id' => trim($_POST['paypal_client_id']), 'secret' => trim($_POST['paypal_secret']),
-                'currency' => strtoupper(trim($_POST['paypal_currency'])), 'rate' => (int)$_POST['paypal_rate']
-            ];
+            if (!isset($settings['paypal'][$server_key])) $settings['paypal'][$server_key] = [];
+            
+            $settings['paypal'][$server_key]['enabled'] = isset($_POST['paypal_enabled']);
+            $settings['paypal'][$server_key]['mode'] = $_POST['paypal_mode'];
+            $settings['paypal'][$server_key]['currency'] = strtoupper(trim($_POST['paypal_currency']));
+            $settings['paypal'][$server_key]['rate'] = (int)$_POST['paypal_rate'];
+            
+            $pp_cli = trim($_POST['paypal_client_id']);
+            $pp_sec = trim($_POST['paypal_secret']);
+            // Only update and encrypt if the admin actually typed something new into the box
+            if (!empty($pp_cli)) $settings['paypal'][$server_key]['client_id'] = encrypt_data($pp_cli, ENCRYPTION_KEY);
+            if (!empty($pp_sec)) $settings['paypal'][$server_key]['secret'] = encrypt_data($pp_sec, ENCRYPTION_KEY);
+            
             $page = 'donations';
             break;
 
@@ -191,11 +192,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
             $db_config = $settings['database'][$server_key];
 
-            // FIXED: Added Encrypt => 0
             $conn = sqlsrv_connect($db_config['host'], [
                 "Database" => $db_config['name'], 
                 "Uid" => $db_config['user'],
-                "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
+                "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY),
                 "TrustServerCertificate" => 1, "Encrypt" => 0
             ]);
 
@@ -213,7 +213,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 $acc = $order['AccountID'];
                 $credsToAdd = (int)$order['CreditsToReceive'];
 
-                // FIXED: Safely check if the user already has a WebCredits row without using has_rows()
                 $check = sqlsrv_query($conn, "SELECT credits FROM WebCredits WHERE memb___id = ?", [$acc]);
                 $row = sqlsrv_fetch_array($check, SQLSRV_FETCH_ASSOC);
                 
@@ -223,7 +222,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                     sqlsrv_query($conn, "INSERT INTO WebCredits (memb___id, credits) VALUES (?, ?)", [$acc, $credsToAdd]);
                 }
 
-                // Mark the order as Approved
                 sqlsrv_query($conn, "UPDATE PendingDonations SET Status = 1 WHERE ID = ?", [$order_id]);
 
                 sqlsrv_close($conn);
@@ -241,11 +239,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
             $db_config = $settings['database'][$server_key];
             
-            // FIXED: Added Encrypt => 0
             $conn = sqlsrv_connect($db_config['host'], [
                 "Database" => $db_config['name'], 
                 "Uid" => $db_config['user'],
-                "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
+                "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY),
                 "TrustServerCertificate" => 1, "Encrypt" => 0
             ]);
 
@@ -297,7 +294,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
                     $conn = sqlsrv_connect($db_config['host'], [
                         "Database" => $db_config['name'], "Uid" => $db_config['user'],
-                        "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
+                        "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY),
                         "TrustServerCertificate" => 1, "Encrypt" => 0
                     ]);
 

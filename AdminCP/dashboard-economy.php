@@ -1,60 +1,78 @@
 <?php
-$server_key = (isset($_SESSION['admin_server']) && $_SESSION['admin_server'] === 'hard') ? 'hard_rate' : 'mid_rate';
-$settings = json_decode(file_get_contents('../Configuration/settings.json'), true);
-$server_label = ($server_key === 'mid_rate') ? ($settings['server_names']['mid_rate'] ?? 'Mid Rate') : ($settings['server_names']['hard_rate'] ?? 'Hard Rate');
+$settingsPath = '../Configuration/settings.json';
+$settings = json_decode(file_get_contents($settingsPath), true);
 
-// Load tracked items specifically for the active server
-$tracked_items = $settings['economy_tracking'][$server_key] ?? [];
+// Handle Form Submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['update_economy'])) {
+    $newTrackedItems = [];
+    
+    // Loop through posted arrays
+    if(isset($_POST['item_name'])) {
+        foreach($_POST['item_name'] as $i => $name) {
+            if(!empty($name)) {
+                $newTrackedItems[] = [
+                    "name" => htmlspecialchars($name),
+                    "type" => (int)$_POST['item_type'][$i],
+                    "index" => (int)$_POST['item_index'][$i],
+                    "bundle" => (int)$_POST['item_bundle'][$i],
+                    "col" => htmlspecialchars($_POST['item_col'][$i]) // Leave blank for CustomItemBank items
+                ];
+            }
+        }
+    }
+    
+    $settings['tracked_items'] = $newTrackedItems;
+    file_put_contents($settingsPath, json_encode($settings, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES));
+    echo "<div class='alert alert-success'>Economy Tracking Settings Saved!</div>";
+}
 ?>
 
-<div style="background: #007bff; color: white; padding: 12px; border-radius: 5px; margin-bottom: 20px; text-align: center; font-size: 1.2em; font-weight: bold; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
-    Currently Editing: <?php echo htmlspecialchars($server_label); ?>
-</div>
-
-<h2>Economy Tracker Settings</h2>
-<p style="text-align:center; color:#666;">Track the total amount of specific Jewels/Items inside all player CustomJewelBanks on <strong><?php echo htmlspecialchars($server_label); ?></strong>.</p>
-
-<?php if(isset($_GET['success'])): ?>
-    <div style="background:#d4edda; color:#155724; padding:10px; border-radius:4px; margin-bottom:15px; text-align:center; font-weight:bold;">
-        Economy Tracker Updated for <?php echo htmlspecialchars($server_label); ?>!
+<div class="card">
+    <div class="card-header">Configure Tracked Economy Items</div>
+    <div class="card-body">
+        <form method="POST">
+            <table class="table table-bordered" id="economyTable">
+                <thead>
+                    <tr>
+                        <th>Item Name</th>
+                        <th>Type (Cat)</th>
+                        <th>Index</th>
+                        <th>DB Column (JewelBank Only)</th>
+                        <th>Action</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <?php foreach($settings['tracked_items'] as $item): ?>
+                    <tr>
+                        <td><input type="text" name="item_name[]" class="form-control" value="<?= htmlspecialchars($item['name']) ?>"></td>
+                        <td><input type="number" name="item_type[]" class="form-control" value="<?= $item['type'] ?>"></td>
+                        <td><input type="number" name="item_index[]" class="form-control" value="<?= $item['index'] ?>"></td>
+                        <input type="hidden" name="item_bundle[]" value="<?= isset($item['bundle']) ? $item['bundle'] : 0 ?>">
+                        <td><input type="text" name="item_col[]" class="form-control" value="<?= htmlspecialchars($item['col'] ?? '') ?>" placeholder="e.g. Bless (Leave blank if CustomItemBank)"></td>
+                        <td><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()">Remove</button></td>
+                    </tr>
+                    <?php endforeach; ?>
+                </tbody>
+            </table>
+            
+            <button type="button" class="btn btn-secondary" onclick="addEconomyRow()">+ Add New Item</button>
+            <button type="submit" name="update_economy" class="btn btn-primary float-right">Save Settings</button>
+        </form>
     </div>
-<?php endif; ?>
-
-<form action="actions/manage-settings.php" method="POST" style="background:#f9f9f9; padding:20px; border-radius:8px; border:1px solid #ddd; max-width:700px; margin:auto;">
-    <input type="hidden" name="action" value="save_economy">
-    
-    <table style="width:100%; text-align:left; margin-bottom:15px;">
-        <thead>
-            <tr>
-                <th style="padding-bottom:10px;">Display Name (e.g. Jewel of Bless)</th>
-                <th style="padding-bottom:10px;">CustomJewelBank Column Name</th>
-                <th></th>
-            </tr>
-        </thead>
-        <tbody id="economy-list">
-            <?php foreach ($tracked_items as $name => $col): ?>
-            <tr>
-                <td><input type="text" name="item_names[]" value="<?php echo htmlspecialchars($name); ?>" required></td>
-                <td><input type="text" name="item_cols[]" value="<?php echo htmlspecialchars($col); ?>" required></td>
-                <td><button type="button" class="button delete" onclick="this.parentElement.parentElement.remove()">Remove</button></td>
-            </tr>
-            <?php endforeach; ?>
-        </tbody>
-    </table>
-
-    <button type="button" class="button edit" style="margin-bottom:15px;" onclick="addEconomyRow()">+ Add New Item to Track</button>
-    <button type="submit" class="button" style="width:100%;">Save Economy Settings for <?php echo htmlspecialchars($server_label); ?></button>
-</form>
+</div>
 
 <script>
 function addEconomyRow() {
-    const tbody = document.getElementById('economy-list');
-    const tr = document.createElement('tr');
-    tr.innerHTML = `
-        <td><input type="text" name="item_names[]" placeholder="e.g. Jewel of Chaos" required></td>
-        <td><input type="text" name="item_cols[]" placeholder="e.g. Chaos" required></td>
-        <td><button type="button" class="button delete" onclick="this.parentElement.parentElement.remove()">Remove</button></td>
+    const html = `
+        <tr>
+            <td><input type="text" name="item_name[]" class="form-control"></td>
+            <td><input type="number" name="item_type[]" class="form-control"></td>
+            <td><input type="number" name="item_index[]" class="form-control"></td>
+            <input type="hidden" name="item_bundle[]" value="0">
+            <td><input type="text" name="item_col[]" class="form-control" placeholder="Leave blank if CustomItemBank"></td>
+            <td><button type="button" class="btn btn-danger btn-sm" onclick="this.closest('tr').remove()">Remove</button></td>
+        </tr>
     `;
-    tbody.appendChild(tr);
+    document.querySelector('#economyTable tbody').insertAdjacentHTML('beforeend', html);
 }
 </script>

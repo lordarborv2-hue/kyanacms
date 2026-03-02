@@ -69,30 +69,6 @@
         "price_luck_skill": 25
     },
     "show_online_count": true,
-    "paypal": {
-        "enabled": true,
-        "mode": "sandbox",
-        "client_id": "Aasz8rMXiXr7zKIKIDJnSh3Tvmi4_EMHkgdeyWMO9_lbh7XZBp_HykRnM-wlh6Hdv4iYnDANQA7OJa5x",
-        "secret": "ECVsuBYz7tRK40W2iJTPYknNc_mggT6cWvnIUBPWV6aVEhN-p-mkwcV73GdE2ELk9a6tywd1S-J1D5MV",
-        "currency": "USD",
-        "rate": 100,
-        "mid_rate": {
-            "enabled": true,
-            "mode": "sandbox",
-            "client_id": "Aasz8rMXiXr7zKIKIDJnSh3Tvmi4_EMHkgdeyWMO9_lbh7XZBp_HykRnM-wlh6Hdv4iYnDANQA7OJa5x",
-            "secret": "Aasz8rMXiXr7zKIKIDJnSh3Tvmi4_EMHkgdeyWMO9_lbh7XZBp_HykRnM-wlh6Hdv4iYnDANQA7OJa5x",
-            "currency": "USD",
-            "rate": 100
-        },
-        "hard_rate": {
-            "enabled": true,
-            "mode": "sandbox",
-            "client_id": "Aasz8rMXiXr7zKIKIDJnSh3Tvmi4_EMHkgdeyWMO9_lbh7XZBp_HykRnM-wlh6Hdv4iYnDANQA7OJa5x",
-            "secret": "Aasz8rMXiXr7zKIKIDJnSh3Tvmi4_EMHkgdeyWMO9_lbh7XZBp_HykRnM-wlh6Hdv4iYnDANQA7OJa5x",
-            "currency": "USD",
-            "rate": 100
-        }
-    },
     "tracked_items": [
         {
             "name": "Jewel of Bless",
@@ -135,6 +111,20 @@
             "index": 42,
             "bundle": 140,
             "col": "Harmony"
+        },
+        {
+            "name": "Jewel of Guardian",
+            "type": 14,
+            "index": 31,
+            "bundle": 0,
+            "col": "Guardian"
+        },
+        {
+            "name": "Short Sword",
+            "type": 0,
+            "index": 1,
+            "bundle": 0,
+            "col": ""
         }
     ],
     "qr_ph": {
@@ -145,16 +135,32 @@
             "ratio": 100
         },
         "hard_rate": {
-            "enabled": true,
+            "enabled": false,
             "ratio": 100
         }
     },
-    "paymongo": {
+    "paypal": {
         "mid_rate": {
-            "enabled": false,
-            "public_key": "",
-            "secret_key": "",
-            "rate": 1
+            "enabled": true,
+            "mode": "sandbox",
+            "currency": "USD",
+            "rate": 100,
+            "client_id": "a3MvOGVndVRTemFiaFVNaXlpdnZ4eXc5ZmFjNG55bzdDYkIrNTNBQWhMYzdzK2owZXFteTB5NXZ3SCtoR0d5c09LS0VXVGRkdDFURjhvSGQxSUtwaGpicG8xS01wemhkSFNRcUJiK0c1WkpyY3c2bGI1MlRqcC9JSTFLREIyRHE6OlwnGJ8kyQ1kePS\/HToQcnI=",
+            "secret": "TUdORkllOGNSSXEzOEQ0SHk4Rng5bUVCNFVLZ3k3UTdhbSsyRm90eGhaTnZ3ZWJvcWFLVzZ0ZDJSSlBFVzNVQWZvbFBoNjJlUk43eG9OZ2MzaE93eE5wK0c0ZHJYTm1aNGo1dXptQ1ZCbGJrN29YVURRVFNtR3lBMDlYUHhuN0o6OkXE+X0QojQCM150LDa7xvk="
+        }
+    },
+    "paymongo": {
+        "hard_rate": {
+            "enabled": true,
+            "rate": 100,
+            "public_key": "ZVZEWTlBeTZ6TDgvbmhOdVdCd3BUUXJ5V3dGQXpWbjlVV3pBU1RIazB5aG9GdkMxZW96QnBvRzl4eUM1ck5Cejo6IP8YOA8bX7keznlca604ag==",
+            "secret_key": "VlE5Q2plWGxEcVJNeXJJYUlQM3h3MGRyakJicmFRM0FheUFpcXZsTS8yTEVKcmtqa213RFVHY3AzOFg4OU5Vdzo6MxaHZcTrLDxsPmqsaIweXQ=="
+        },
+        "mid_rate": {
+            "enabled": true,
+            "rate": 100,
+            "public_key": "d2xlZ29uMEZrZVBydDJoNUI0ZEphcThGOXZrbmtYeG9ySEJ5eG5CNVJaMTQ2M081b1Y1Ukl4SjM3SDB0RW9HbDo6lzhPrlR9wBcrcHKS1Rm71Q==",
+            "secret_key": "eC91K0lySTJ1VWFzbUtuWFJ5T0htSXAreVdGWnYxTkN0TWFQVVlIelg4SnAydnMxWGUyS3dJMHVDcmtZSG1XVjo6OONqP+fE6jRlUpsvt3tfuw=="
         }
     }
 }

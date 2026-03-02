@@ -471,15 +471,17 @@ function calculatePayMongo() {
     if (minMsg) minMsg.textContent = `Minimum purchase: ${minCredits} Credits (1 PHP)`;
 }
 
+let paymongoCheckInterval; // Global variable to manage the timer
+
 async function payWithPayMongo() {
     const credits = parseInt(document.getElementById('paymongo-credits').value) || 0;
-    const rate = paymongoConfig.rate || 100;
+    const rate = paymongoConfig.rate || 100; //
     const pricePhp = credits / rate;
     const msgDiv = document.getElementById('paymongo-message');
 
     if (credits <= 0) return;
 
-    // Enforce PayMongo's strict 100 PHP minimum
+    // Minimum transaction check
     if (pricePhp < 100) {
         const minCredits = rate * 100;
         msgDiv.innerHTML = `<span style="color:#dc3545;">❌ Minimum transaction is 100 PHP (${minCredits} Credits).</span>`;
@@ -488,7 +490,7 @@ async function payWithPayMongo() {
 
     msgDiv.innerHTML = '<span style="color:#f1c40f;">⏳ Generating Secure Payment Link...</span>';
 
-    // TRICK TO BYPASS POPUP BLOCKERS: Open a blank tab IMMEDIATELY when they click
+    // Open blank tab to bypass popup blockers
     let paymentWindow = window.open('', '_blank');
     if (paymentWindow) {
         paymentWindow.document.write("<h2 style='font-family:sans-serif; text-align:center; margin-top:50px;'>Connecting to PayMongo Secure Checkout... Please wait.</h2>");
@@ -496,37 +498,52 @@ async function payWithPayMongo() {
 
     const formData = new FormData();
     formData.append('credits', credits);
-	formData.append('account', document.getElementById('user-name').textContent.trim());
+    formData.append('account', document.getElementById('user-name').textContent.trim());
 
     try {
         const response = await fetch('Configuration/paymongo-create-link.php', { method: 'POST', body: formData });
-        const responseText = await response.text();
+        const result = await response.json(); //
         
-        try {
-            const result = JSON.parse(responseText);
-            if (result.success) {
-                msgDiv.innerHTML = `<span style="color:#28a745;">✅ Checkout opened in a new tab! <br><a href="${result.checkout_url}" target="_blank" style="color:#007bff; text-decoration:underline;">Click here if the new tab didn't open.</a></span>`;
-                
-                // Forward the blank tab to the real PayMongo URL
-                if (paymentWindow) {
-                    paymentWindow.location.href = result.checkout_url;
-                }
-            } else {
-                if (paymentWindow) paymentWindow.close(); // Close the blank tab on error
-                msgDiv.innerHTML = `<span style="color:#dc3545;">❌ ${result.message}</span>`;
+        if (result.success) {
+            msgDiv.innerHTML = `<span style="color:#f1c40f;">⏳ Waiting for payment confirmation...</span><br><small>Checkout opened in a new tab.</small>`;
+            
+            if (paymentWindow) {
+                paymentWindow.location.href = result.checkout_url;
             }
-        } catch (parseErr) {
+
+            // --- START POLLING FOR CONFIRMATION ---
+            // Clear any existing interval first
+            if (paymongoCheckInterval) clearInterval(paymongoCheckInterval);
+
+            paymongoCheckInterval = setInterval(async () => {
+                try {
+                    const statusRes = await fetch('Configuration/check-payment-status.php?t=' + Date.now());
+                    const statusData = await statusRes.json();
+                    
+                    if (statusData.status === 'success') {
+                        clearInterval(paymongoCheckInterval);
+                        msgDiv.innerHTML = `<span style="color:#28a745; font-size:1.1em; font-weight:bold;">✅ ${statusData.message}</span>`;
+                        
+                        // Show visual notification
+                        alert("Success! " + statusData.message);
+                        
+                        // Refresh user credits in the header
+                        loadUserData(); 
+                    }
+                } catch (err) {
+                    console.error("Polling error:", err);
+                }
+            }, 3000); // Check every 3 seconds
+
+        } else {
             if (paymentWindow) paymentWindow.close();
-            console.error("Server returned non-JSON response:", responseText);
-            msgDiv.innerHTML = `<span style="color:#dc3545;">❌ Server Error. Check console (F12) for details.</span>`;
+            msgDiv.innerHTML = `<span style="color:#dc3545;">❌ ${result.message}</span>`;
         }
     } catch (e) {
         if (paymentWindow) paymentWindow.close();
-        console.error("Fetch failed:", e);
-        msgDiv.innerHTML = '<span style="color:#dc3545;">❌ Error connecting to server. File might be missing.</span>';
+        msgDiv.innerHTML = '<span style="color:#dc3545;">❌ Error connecting to server.</span>';
     }
 }
-
 // --- PAYPAL DONATION SYSTEM ---
 function calculateDonation() {
     const amount = parseFloat(document.getElementById('donate-amount').value) || 0;

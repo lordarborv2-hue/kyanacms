@@ -2,33 +2,29 @@
 header('Content-Type: application/json');
 session_start();
 error_reporting(0); 
-require_once '../config.php';
+require_once '../config.php'; // Inherits decrypt_data and ENCRYPTION_KEY
 
 if (!isset($_SESSION['user_loggedin']) || $_SESSION['user_loggedin'] !== true) {
     echo json_encode(['success' => false, 'message' => 'Not logged in.']); exit;
 }
 
 $settings = json_decode(file_get_contents('settings.json'), true);
-
-if (isset($settings['user_dashboard']['enable_webshop']) && $settings['user_dashboard']['enable_webshop'] == false) {
-    echo json_encode(['success' => false, 'message' => 'The Webshop is currently disabled.']); exit;
-}
-
-$username = $_SESSION['user_id'];
 $server = $_SESSION['user_server'] ?? 'mid';
 $server_key = ($server === 'mid') ? 'mid_rate' : 'hard_rate';
 
-function decrypt_pass($garbled, $key) {
-    if (empty($garbled)) return '';
-    list($encrypted_data, $iv) = explode('::', base64_decode($garbled), 2);
-    return openssl_decrypt($encrypted_data, ENCRYPTION_CIPHER, $key, 0, $iv);
+// Check if Webshop is enabled for this specific server
+if (isset($settings['user_dashboard'][$server_key]['enable_webshop']) && $settings['user_dashboard'][$server_key]['enable_webshop'] == false) {
+    echo json_encode(['success' => false, 'message' => 'The Webshop is currently disabled for this server.']); exit;
 }
 
+$username = $_SESSION['user_id'];
 $db_config = $settings['database'][$server_key];
+
+// Use the global decrypt_data function instead of the local one
 $conn = sqlsrv_connect($db_config['host'], [
     "Database" => $db_config['name'] ?? 'MuOnline',
     "Uid" => $db_config['user'],
-    "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
+    "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY), // Updated function
     "TrustServerCertificate" => 1, "Encrypt" => 0
 ]);
 
@@ -57,7 +53,7 @@ $excCount = substr_count(decbin($excOpt), '1');
 if ($excCount > $itemData['MaxExc']) { echo json_encode(['success' => false, 'message' => "Max {$itemData['MaxExc']} Exc options allowed."]); exit; }
 if ($sockets > $itemData['MaxSocket']) { echo json_encode(['success' => false, 'message' => "Max {$itemData['MaxSocket']} Sockets allowed."]); exit; }
 
-// 4. Calculate Final Price (USING DYNAMIC ANCIENT SETTINGS)
+// 4. Calculate Final Price
 $priceCfg = $settings['webshop'][$server_key] ?? $settings['webshop'] ?? [];
 $totalPrice = $itemData['BasePrice'] 
     + ($level * (int)($priceCfg['price_level'] ?? 10)) 
@@ -66,7 +62,7 @@ $totalPrice = $itemData['BasePrice']
     + ($opt380 * (int)($priceCfg['price_380'] ?? 100))
     + (($harmony > 0 ? 1 : 0) * (int)($priceCfg['price_harmony'] ?? 100))
     + ($sockets * (int)($priceCfg['price_socket'] ?? 50))
-    + (($ancient > 0 ? 1 : 0) * (int)($priceCfg['price_ancient'] ?? 100)); // Dynamic Ancient Pricing!
+    + (($ancient > 0 ? 1 : 0) * (int)($priceCfg['price_ancient'] ?? 100));
 
 // 5. Check Offline Status
 $statStmt = sqlsrv_query($conn, "SELECT ConnectStat FROM MEMB_STAT WHERE memb___id = ?", [$username]);
@@ -150,12 +146,12 @@ $hex .= sprintf("%02X", $ancientByte);
 $byte9 = ($itemType * 16) + ($itemIndex > 255 ? 128 : 0) + ($opt380 ? 8 : 0);
 $hex .= sprintf("%02X", $byte9); 
 
-// BYTE 10: HARMONY ONLY (SD BYPASS BUG FIXED HERE)
+// BYTE 10: HARMONY ONLY
 $byte10 = 0x00;
 if ($harmony > 0) { 
-    // Bitwise shift the Harmony option index, and force Level 13 (0x0D)
     $byte10 = ($harmony << 4) | 0x0D; 
 }
+
 $hex .= sprintf("%02X", $byte10);
 
 // Sockets (Bytes 11-15)

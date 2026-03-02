@@ -41,14 +41,10 @@ if ($event_type === 'link.payment.paid') {
             $db_config = $settings['database'][$server_key] ?? null;
 
             if ($db_config) {
-                function decrypt_pass($garbled, $key) {
-                    list($encrypted_data, $iv) = explode('::', base64_decode($garbled), 2);
-                    return openssl_decrypt($encrypted_data, ENCRYPTION_CIPHER, $key, 0, $iv);
-                }
-
+                // Connect using the global decrypt_data function instead of the inline one
                 $conn = sqlsrv_connect($db_config['host'], [
                     "Database" => $db_config['name'], "Uid" => $db_config['user'],
-                    "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
+                    "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY),
                     "TrustServerCertificate" => 1, "Encrypt" => 0
                 ]);
 
@@ -56,7 +52,8 @@ if ($event_type === 'link.payment.paid') {
                     file_put_contents($log_file, "DB Connected successfully.\n", FILE_APPEND);
                     $check = sqlsrv_query($conn, "SELECT credits FROM WebCredits WHERE memb___id = ?", [$account_id]);
                     $row = sqlsrv_fetch_array($check, SQLSRV_FETCH_ASSOC);
-                    
+                    $success_flag = __DIR__ . "/../uploads/status_{$account_id}.txt";
+					file_put_contents($success_flag, "paid");
                     if ($row) {
                         sqlsrv_query($conn, "UPDATE WebCredits SET credits = credits + ? WHERE memb___id = ?", [$credits_to_add, $account_id]);
                         file_put_contents($log_file, "Update query executed. Credits Added!\n", FILE_APPEND);
@@ -64,6 +61,7 @@ if ($event_type === 'link.payment.paid') {
                         sqlsrv_query($conn, "INSERT INTO WebCredits (memb___id, credits) VALUES (?, ?)", [$account_id, $credits_to_add]);
                         file_put_contents($log_file, "Insert query executed. Credits Added!\n", FILE_APPEND);
                     }
+					file_put_contents($log_file, "Success flag created for $account_id\n", FILE_APPEND);
                     sqlsrv_close($conn);
                 } else {
                     file_put_contents($log_file, "DB Connection Failed: " . print_r(sqlsrv_errors(), true) . "\n", FILE_APPEND);
