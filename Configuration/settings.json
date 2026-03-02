@@ -5,24 +5,6 @@
         "session_timeout_minutes": 30,
         "user_session_timeout_minutes": 10
     },
-    "user_dashboard": {
-        "mid_rate": {
-            "enable_webshop": true,
-            "enable_reset": true,
-            "enable_reset_stats": true,
-            "enable_clear_pk": true,
-            "enable_reset_master": true,
-            "enable_unstuck": true
-        },
-        "hard_rate": {
-            "enable_webshop": true,
-            "enable_reset": false,
-            "enable_reset_stats": false,
-            "enable_clear_pk": false,
-            "enable_reset_master": false,
-            "enable_unstuck": false
-        }
-    },
     "database": {
         "mid_rate": {
             "host": "127.0.0.1",
@@ -60,8 +42,8 @@
     },
     "conversion_rates": {
         "wcoinc": 30,
-        "wcoinp": 0,
-        "goblin": 0
+        "wcoinp": 25,
+        "goblin": 5
     },
     "webshop": {
         "price_level": 10,
@@ -161,6 +143,16 @@
             "rate": 100,
             "public_key": "d2xlZ29uMEZrZVBydDJoNUI0ZEphcThGOXZrbmtYeG9ySEJ5eG5CNVJaMTQ2M081b1Y1Ukl4SjM3SDB0RW9HbDo6lzhPrlR9wBcrcHKS1Rm71Q==",
             "secret_key": "eC91K0lySTJ1VWFzbUtuWFJ5T0htSXAreVdGWnYxTkN0TWFQVVlIelg4SnAydnMxWGUyS3dJMHVDcmtZSG1XVjo6OONqP+fE6jRlUpsvt3tfuw=="
+        }
+    },
+    "user_dashboard": {
+        "mid_rate": {
+            "enable_webshop": true,
+            "enable_reset": true,
+            "enable_reset_stats": true,
+            "enable_clear_pk": true,
+            "enable_reset_master": true,
+            "enable_unstuck": true
         }
     }
 }

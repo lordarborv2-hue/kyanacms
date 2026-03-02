@@ -17,11 +17,6 @@ $username = $_SESSION['user_id'];
 $server = $_SESSION['user_server'];
 
 // DB Connection
-function decrypt_pass($garbled, $key) {
-    if (empty($garbled)) return '';
-    list($encrypted_data, $iv) = explode('::', base64_decode($garbled), 2);
-    return openssl_decrypt($encrypted_data, ENCRYPTION_CIPHER, $key, 0, $iv);
-}
 
 if ($server === 'mid') {
     $db_config = $settings['database']['mid_rate'];
@@ -34,7 +29,7 @@ if ($server === 'mid') {
 $conn = sqlsrv_connect($db_config['host'], [
     "Database" => $db_name,
     "Uid" => $db_config['user'],
-    "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
+    "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY),
     "CharacterSet" => "UTF-8",
     "TrustServerCertificate" => 1,
     "Encrypt" => 0
@@ -61,7 +56,8 @@ if ($onlineRow && $onlineRow['ConnectStat'] == 1) {
 }
 
 // --- ACTIONS ---
-$features = $settings['user_dashboard'] ?? [];
+$server_key = ($server === 'mid') ? 'mid_rate' : 'hard_rate';
+$features = $settings['user_dashboard'][$server_key] ?? [];
 $message = 'Action failed.';
 $success = false;
 

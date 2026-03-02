@@ -35,17 +35,12 @@ $rate = (int)($settings['conversion_rates'][$coin_type] ?? 1);
 $coins_to_give = $amount_to_spend * $rate;
 
 // DB Connection
-function decrypt_pass($garbled, $key) {
-    if (empty($garbled)) return '';
-    list($encrypted_data, $iv) = explode('::', base64_decode($garbled), 2);
-    return openssl_decrypt($encrypted_data, ENCRYPTION_CIPHER, $key, 0, $iv);
-}
 
 $db_config = ($server === 'mid') ? $settings['database']['mid_rate'] : $settings['database']['hard_rate'];
 $conn = sqlsrv_connect($db_config['host'], [
     "Database" => $db_config['name'] ?? 'MuOnline',
     "Uid" => $db_config['user'],
-    "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY),
+    "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY),
     "TrustServerCertificate" => 1, "Encrypt" => 0
 ]);
 
