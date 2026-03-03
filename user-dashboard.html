@@ -122,7 +122,7 @@
     
     <!-- LEFT SIDEBAR -->
     <div class="sidebar">
-        <h3 class="sidebar-title" id="left-sidebar-title">My Warehouse</h3>
+        <h3 class="sidebar-title" id="left-sidebar-title">Server Item Stats</h3>
         
         <div class="toggle-container">
             <span style="color:#007bff;">Items</span>
@@ -152,11 +152,29 @@
     <div class="dashboard-container">
         <div class="header">
             <h2 style="margin:0;">Welcome, <span id="user-name" style="color: #007bff;">User</span></h2>
+			<div style="position: relative;">
+    <button class="btn" style="background:#e67e22;" onclick="toggleCart()">
+        🛒 Cart (<span id="cart-count">0</span>)
+    </button>
+    <div id="cart-dropdown" style="display:none; position:absolute; right:0; top:45px; width:300px; background:#222; border:1px solid #444; z-index:9999; padding:15px; border-radius:8px; box-shadow:0 10px 30px #000;">
+        <h4 style="margin:0 0 10px 0; border-bottom:1px solid #444;">Shopping Cart</h4>
+        <div id="cart-items-list" style="max-height:300px; overflow-y:auto;"></div>
+        <div style="margin-top:10px; border-top:1px solid #444; padding-top:10px;">
+            <div style="display:flex; justify-content:space-between; margin-bottom:10px;">
+                <span>Total:</span> <strong id="cart-total" style="color:#f1c40f;">0</strong>
+            </div>
+            <button class="btn" style="width:100%;" onclick="checkoutCart()">Checkout All</button>
+        </div>
+    </div>
+</div>
+
             <div>
                 <span id="server-name" style="margin-right: 15px; color: #aaa;">Server</span>
                 <button class="btn btn-danger" onclick="logout()">Logout</button>
             </div>
+			
         </div>
+		
 
         <div class="stats-bar">
             <div class="stat-box">WebCredits<span id="stat-web-credits">0</span></div>
@@ -266,8 +284,16 @@
                     </div>
 
                     <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid #444; text-align: center;">
-                        <div style="font-size: 1.2em; margin-bottom: 10px;">Total Price: <span id="shop-total-price" style="color:#f1c40f; font-weight:bold; font-size:1.5em;">0</span> Credits</div>
+                        <div id="item-preview-container" style="background: rgba(0,0,0,0.3); border: 1px solid #444; border-radius: 8px; height: 180px; display: flex; align-items: center; justify-content: center; margin-bottom: 15px;">
+    <img id="item-preview-image" src="uploads/items/placeholder.gif" style="max-width: 120px; max-height: 120px; object-fit: contain; filter: drop-shadow(0 0 10px rgba(255,255,255,0.2));">
+</div>
+
+<div class="total-price-section">
+    Total Price: <span id="shop-total-price">100</span> Credits
+</div>
                         <button class="btn" style="width:100%; font-size:1.1em; padding:15px;" onclick="buyWebshopItem()">Buy Item</button>
+						<button class="btn" style="width:100%; margin-top:10px; background:#3498db;" onclick="addToCart()">Add to Cart</button>
+						<div id="item-tooltip" style="display:none; position:fixed; background:rgba(0,0,0,0.9); border:1px solid #666; padding:10px; border-radius:4px; z-index:10000; pointer-events:none; font-family:sans-serif; font-size:12px;"></div>
                         <div id="shop-message" style="margin-top: 15px; font-weight: bold;"></div>
                     </div>
                 </div>
@@ -295,7 +321,7 @@
 
                 <!-- QR PH -->
                 <div id="qr-ph-container" style="display:none; flex: 1; min-width: 250px; background: #222; padding: 20px; border-radius: 8px; border: 1px solid #444; text-align: center;">
-                    <h3 style="color:#f1c40f; margin-top:0;">Donate via QR Ph</h3>
+                    <h3 style="color:#f1c40f; margin-top:0;">Donate via QR</h3>
                     
                     <div style="background: #fff; padding: 10px; border-radius: 8px; display: inline-block; margin-bottom: 15px;">
                         <img id="qr-ph-image" src="" alt="QR Ph Code" 
@@ -332,7 +358,7 @@
 
                 <!-- PAYMONGO -->
                 <div id="paymongo-container" style="display: none; flex: 1; min-width: 250px; background: #222; padding: 20px; border-radius: 8px; border: 1px solid #444; margin-bottom: 20px;">
-                    <h3 style="margin-top: 0; color: #6f42c1;">Pay with GCash / Maya / Card</h3>
+                    <h3 style="margin-top: 0; color: #6f42c1;">PayMongo</h3>
                     
                     <div style="display: flex; gap: 15px; margin-bottom: 15px; align-items: center;">
                         <div style="flex: 1;">

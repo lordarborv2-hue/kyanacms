@@ -11,6 +11,7 @@ let conversionRates = { wcoinc: 1, wcoinp: 1, goblin: 1 };
 let webshopPricing = { price_level: 10, price_exc: 50, price_luck_skill: 25, price_380: 100, price_harmony: 100, price_socket: 50, price_ancient: 100 };
 let selectedCharacter = '';
 let availableShopItems = [];
+let shoppingCart = [];
 
 // Donation Globals
 let paypalConfig = { enabled: false, rate: 100, currency: 'USD' };
@@ -821,6 +822,179 @@ function openQRModal(src) {
 function closeQRModal() {
     document.getElementById('qr-lightbox').style.display = 'none';
 }
+
+// --- ADD TO CART ---
+function addToCart() {
+    const itemSelect = document.getElementById('shop-item');
+    const msgDiv = document.getElementById('shop-message'); // Reuse existing message div
+
+    if (!itemSelect.value) {
+        msgDiv.innerHTML = '<span style="color:#dc3545">❌ Please select an item first.</span>';
+        return;
+    }
+
+    const opt = itemSelect.options[itemSelect.selectedIndex];
+    const [itemType, itemIndex] = itemSelect.value.split('-');
+    
+    // Capture visual labels for the tooltip
+    const selectedExcNames = [];
+    document.querySelectorAll('.shop-exc:checked').forEach(cb => {
+        selectedExcNames.push(cb.parentElement.textContent.trim());
+    });
+
+    const cartItem = {
+        uniqueId: Date.now(),
+        name: opt.textContent.split('] ')[1],
+        type: parseInt(itemType),
+        index: parseInt(itemIndex),
+        level: parseInt(document.getElementById('shop-level').value),
+        luck: document.getElementById('shop-luck').checked ? 1 : 0,
+        skill: document.getElementById('shop-skill').checked ? 1 : 0,
+        excValue: Array.from(document.querySelectorAll('.shop-exc:checked')).reduce((acc, cb) => acc + parseInt(cb.value), 0),
+        excNames: selectedExcNames,
+        opt380: document.getElementById('shop-380').checked ? 1 : 0,
+        harmonyVal: parseInt(document.getElementById('shop-harmony').value),
+        harmonyName: document.getElementById('shop-harmony').options[document.getElementById('shop-harmony').selectedIndex].text,
+        sockets: parseInt(document.getElementById('shop-sockets').value),
+        ancient: parseInt(document.getElementById('shop-ancient')?.value || 0),
+        price: parseInt(document.getElementById('shop-total-price').textContent),
+        img: `uploads/items/${itemType}-${itemIndex}.gif` //
+    };
+
+    shoppingCart.push(cartItem);
+    updateCartUI(); //
+
+    // --- VISUAL NOTIFICATION ---
+    msgDiv.innerHTML = `<span style="color:#28a745">✅ Added ${cartItem.name} to your cart!</span>`;
+    
+    // Optional: Auto-open the cart dropdown to show the user it's there
+    const cartDropdown = document.getElementById('cart-dropdown');
+    if (cartDropdown && cartDropdown.style.display === 'none') {
+        toggleCart(); //
+    }
+
+    // Clear the notification after 3 seconds
+    setTimeout(() => {
+        msgDiv.innerHTML = '';
+    }, 3000);
+}
+
+// --- UI UPDATES & TOOLTIPS ---
+function updateCartUI() {
+    const list = document.getElementById('cart-items-list');
+    const count = document.getElementById('cart-count');
+    const totalDisplay = document.getElementById('cart-total');
+    
+    if (count) count.textContent = shoppingCart.length;
+    if (!list) return;
+
+    list.innerHTML = '';
+    let total = 0;
+
+    shoppingCart.forEach(item => {
+        total += item.price;
+        list.innerHTML += `
+            <div class="cart-item-row" 
+                 onmouseover="showItemTooltip(event, ${item.uniqueId})" 
+                 onmousemove="moveTooltip(event)"
+                 onmouseout="hideItemTooltip()"
+                 style="display:flex; align-items:center; gap:10px; margin-bottom:8px; background:#1a1a1a; padding:8px; border-radius:4px; border:1px solid #444; cursor:help;">
+                <img src="${item.img}" style="width:32px; height:32px;" onerror="this.src='uploads/items/placeholder.gif'">
+                <div style="flex:1;">
+                    <div style="font-size:0.9em; font-weight:bold;">${item.name} +${item.level}</div>
+                    <div style="font-size:0.8em; color:#f1c40f;">${item.price} Credits</div>
+                </div>
+                <button onclick="removeFromCart(${item.uniqueId})" style="background:none; border:none; color:#ff4444; cursor:pointer;">&times;</button>
+            </div>
+        `;
+    });
+    if (totalDisplay) totalDisplay.textContent = total + " Credits";
+}
+
+function showItemTooltip(e, uniqueId) {
+    const item = shoppingCart.find(i => i.uniqueId === uniqueId);
+    if (!item) return;
+
+    const tooltip = document.getElementById('item-tooltip');
+    let html = `<div style="text-align:center; font-weight:bold; color:${item.ancient > 0 ? '#28a745' : '#fff'};">${item.name}</div>`;
+    html += `<div style="color:#f1c40f; text-align:center;">+${item.level}</div>`;
+    
+    if (item.skill) html += `<div style="color:#28a745;">(Skill)</div>`;
+    if (item.luck) html += `<div style="color:#28a745;">(Luck)</div>`;
+    
+    item.excNames.forEach(name => {
+        html += `<div style="color:#3498db;">${name}</div>`;
+    });
+
+    if (item.harmonyVal > 0) html += `<div style="color:#ffc107;">${item.harmony}</div>`;
+
+    tooltip.innerHTML = html;
+    tooltip.style.display = 'block';
+    moveTooltip(e);
+}
+
+function moveTooltip(e) {
+    const tooltip = document.getElementById('item-tooltip');
+    tooltip.style.left = (e.clientX + 15) + 'px';
+    tooltip.style.top = (e.clientY + 15) + 'px';
+}
+
+function hideItemTooltip() {
+    document.getElementById('item-tooltip').style.display = 'none';
+}
+
+function toggleCart() {
+    const cart = document.getElementById('cart-dropdown');
+    cart.style.display = (cart.style.display === 'none') ? 'block' : 'none';
+}
+
+function removeFromCart(id) {
+    shoppingCart = shoppingCart.filter(i => i.uniqueId !== id);
+    updateCartUI();
+    hideItemTooltip();
+}
+
+async function checkoutCart() {
+    if (shoppingCart.length === 0) return alert("Cart is empty!");
+    
+    const response = await fetch('Configuration/webshop-checkout.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ items: shoppingCart })
+    });
+    
+    const result = await response.json();
+    if (result.success) {
+        alert(result.message);
+        shoppingCart = [];
+        updateCartUI();
+        toggleCart();
+        loadUserData(); //
+    } else {
+        alert(result.message);
+    }
+}
+
+function updateItemPreview() {
+    const itemSelect = document.getElementById('shop-item');
+    if (!itemSelect.value) return;
+
+    const [itemType, itemIndex] = itemSelect.value.split('-');
+    const previewImg = document.getElementById('item-preview-image');
+
+    // Update the image source based on the Type-Index format
+    previewImg.src = `uploads/items/${itemType}-${itemIndex}.gif`;
+
+    // Fallback if the image doesn't exist
+    previewImg.onerror = function() {
+        this.src = 'uploads/items/placeholder.gif';
+    };
+}
+
+// Ensure this runs whenever the item dropdown changes
+document.getElementById('shop-item').addEventListener('change', updateItemPreview);
+
+
 
 // --- LOGOUT LOGIC ---
 async function logout() { 

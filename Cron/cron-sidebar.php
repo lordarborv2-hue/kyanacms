@@ -1,16 +1,12 @@
 <?php
 // C:\xampp\htdocs\Cron\cron-sidebar.php
 error_reporting(0);
-ini_set('display_errors', 0);
-set_time_limit(0); // Allow script to run as long as it needs to parse Hex for both DBs
+ini_set('memory_limit', '512M'); // Increase to 512MB or higher if needed
+set_time_limit(300); // Allow up to 5 minutes to complete
 
 require_once __DIR__ . '/../config.php';
 
-function decrypt_pass($g, $k) { 
-    if (empty($g)) return '';
-    list($d, $i) = explode('::', base64_decode($g), 2); 
-    return openssl_decrypt($d, ENCRYPTION_CIPHER, $k, 0, $i); 
-}
+
 
 $settingsPath = __DIR__ . '/../Configuration/settings.json';
 if (!file_exists($settingsPath)) {
@@ -32,7 +28,7 @@ foreach ($serversToCheck as $server_key) {
     $conn = sqlsrv_connect($db_config['host'], [
         "Database" => $db_config['name'], 
         "Uid" => $db_config['user'],
-        "PWD" => decrypt_pass($db_config['pass_encrypted'], ENCRYPTION_KEY), 
+        "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY), 
         "TrustServerCertificate" => 1,
         "CharacterSet" => "UTF-8"
     ]);
@@ -48,41 +44,44 @@ foreach ($serversToCheck as $server_key) {
     // 1. STANDARD WAREHOUSE & INVENTORY BUNDLES (HEX PARSER)
     // Uses UNION ALL to scan items inside Vaults AND Player Backpacks
     $hexQuery = "
-        SELECT CONVERT(VARCHAR(MAX), Items, 2) AS ItemsHex FROM Warehouse
-        UNION ALL
-        SELECT CONVERT(VARCHAR(MAX), Inventory, 2) AS ItemsHex FROM Character
-    ";
+    SELECT Items AS ItemsBinary FROM Warehouse WHERE Items IS NOT NULL AND CAST(Items AS VARBINARY(MAX)) <> 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+    UNION ALL
+    SELECT Inventory AS ItemsBinary FROM Character WHERE Inventory IS NOT NULL AND CAST(Inventory AS VARBINARY(MAX)) <> 0xFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+";
     
     $whStmt = sqlsrv_query($conn, $hexQuery);
-    if ($whStmt) {
-        while ($whRow = sqlsrv_fetch_array($whStmt, SQLSRV_FETCH_ASSOC)) {
-            if (empty($whRow['ItemsHex'])) continue;
+    $whStmt = sqlsrv_query($conn, $hexQuery);
+if ($whStmt) {
+    while ($whRow = sqlsrv_fetch_array($whStmt, SQLSRV_FETCH_ASSOC)) {
+        // Use PHP's bin2hex only on the row we are currently processing
+        $hex = bin2hex($whRow['ItemsBinary']);
+        if (empty($hex)) continue;
+        
+        $hexArray = str_split($hex, 32);
+        foreach ($hexArray as $item) {
+            if (strlen($item) < 32 || strtoupper(substr($item, 0, 4)) === 'FFFF') continue;
             
-            // Split the long hex string into 32-character chunks (individual items)
-            $hexArray = str_split($whRow['ItemsHex'], 32);
-            foreach ($hexArray as $item) {
-                // Ignore empty slots (FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF) or malformed chunks
-                if (strlen($item) < 32 || strtoupper($item) === 'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF') continue;
-                
-                $id = hexdec(substr($item, 0, 2));
-                $level = (floor(hexdec(substr($item, 2, 2)) / 8)) & 15; 
-                $hexType = hexdec(substr($item, 18, 2));
-                $category = floor($hexType / 16);
-                if ($hexType & 128) $id += 256;
+            $id = hexdec(substr($item, 0, 2));
+            $level = (floor(hexdec(substr($item, 2, 2)) / 8)) & 15; 
+            $hexType = hexdec(substr($item, 18, 2));
+            $category = floor($hexType / 16);
+            if ($hexType & 128) $id += 256;
 
-                foreach ($tracked_config as $ti) {
-                    // Direct Match (Single Items)
-                    if ($category == $ti['type'] && $id == $ti['index']) {
-                        $itemCounts[$ti['name']]++;
-                    }
-                    // Bundle Match (Type 12 bundled jewels usually map bundle count via level)
-                    if ($category == 12 && !empty($ti['bundle']) && $id == $ti['bundle']) {
-                        $itemCounts[$ti['name']] += (($level + 1) * 10);
-                    }
+            foreach ($tracked_config as $ti) {
+                if ($category == $ti['type'] && $id == $ti['index']) {
+                    $itemCounts[$ti['name']]++;
+                }
+                // Only process bundles for categories that support them
+                if ($category == 12 && !empty($ti['bundle']) && $id == $ti['bundle']) {
+                    $itemCounts[$ti['name']] += (($level + 1) * 10);
                 }
             }
         }
+        // Manually clear variable to free memory for the next row
+        unset($hex);
+        unset($hexArray);
     }
+}
 
     // 2. DYNAMIC CUSTOM JEWEL BANK
     $jewelSelects = [];
