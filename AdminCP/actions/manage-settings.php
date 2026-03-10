@@ -258,95 +258,93 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			
 
         case 'upload_item_txt':
-    if (isset($_FILES['item_txt']) && $_FILES['item_txt']['error'] == 0) {
-        // --- 1. PARSE ANCIENT NAMES (SetItemOption.txt) ---
-        $ancNames = [];
-        if (isset($_FILES['anc_opt_txt']) && $_FILES['anc_opt_txt']['error'] == 0) {
-            $optLines = file($_FILES['anc_opt_txt']['tmp_name'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-            foreach ($optLines as $oLine) {
-                // Matches Index and Name (e.g., 1 "Warrior")
-                if (preg_match('/^(\d+)\s+"([^"]+)"/', trim($oLine), $oMatches)) {
-                    $ancNames[(int)$oMatches[1]] = $oMatches[2];
+            if (isset($_FILES['item_txt']) && $_FILES['item_txt']['error'] == 0) {
+                // 1. PARSE ANCIENT NAMES (SetItemOption.txt)
+                $ancNames = [];
+                if (isset($_FILES['anc_opt_txt']) && $_FILES['anc_opt_txt']['error'] == 0) {
+                    $optLines = file($_FILES['anc_opt_txt']['tmp_name'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                    foreach ($optLines as $oLine) {
+                        if (preg_match('/^(\d+)\s+"([^"]+)"/', trim($oLine), $oMatches)) {
+                            $ancNames[(int)$oMatches[1]] = $oMatches[2];
+                        }
+                    }
                 }
-            }
-        }
 
-        // --- 2. MAP ITEMS TO ANCIENT NAMES (SetItemType.txt) ---
-        $itemAncMap = [];
-        if (isset($_FILES['ancient_txt']) && $_FILES['ancient_txt']['error'] == 0) {
-            $ancLines = file($_FILES['ancient_txt']['tmp_name'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-            foreach ($ancLines as $aLine) {
-                $aLine = trim(explode('//', $aLine)[0]);
-                if (empty($aLine) || strtolower($aLine) == 'end') continue;
+                // 2. MAP ITEMS TO ANCIENT NAMES (SetItemType.txt)
+                $itemAncMap = [];
+                if (isset($_FILES['ancient_txt']) && $_FILES['ancient_txt']['error'] == 0) {
+                    $ancLines = file($_FILES['ancient_txt']['tmp_name'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+                    foreach ($ancLines as $aLine) {
+                        $aLine = trim(explode('//', $aLine)[0]);
+                        if (empty($aLine) || strtolower($aLine) == 'end') continue;
+                        $parts = preg_split('/\s+/', $aLine);
+                        if (count($parts) >= 4) {
+                            $sec = $parts[0]; $id = $parts[1]; 
+                            $opt1 = (int)$parts[3];
+                            $opt2 = isset($parts[4]) ? (int)$parts[4] : 0;
+                            $itemAncMap["$sec-$id"] = [
+                                'name1' => $ancNames[$opt1] ?? null,
+                                'name2' => ($opt2 > 0) ? ($ancNames[$opt2] ?? null) : null
+                            ];
+                        }
+                    }
+                }
+
+                // 3. PROCESS ITEM.TXT & PREPARE FOLDERS
+                $sockets = (isset($_FILES['socket_txt']) && $_FILES['socket_txt']['error'] == 0) ? file_get_contents($_FILES['socket_txt']['tmp_name']) : '';
+                $item380 = (isset($_FILES['380_txt']) && $_FILES['380_txt']['error'] == 0) ? file_get_contents($_FILES['380_txt']['tmp_name']) : '';
+                $lines = file($_FILES['item_txt']['tmp_name'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
                 
-                $parts = preg_split('/\s+/', $aLine);
-                if (count($parts) >= 4) { // Section, Type, StatType, OptionIndex1, OptionIndex2
-                    $sec = $parts[0]; $id = $parts[1]; 
-                    $opt1 = (int)$parts[3];
-                    $opt2 = isset($parts[4]) ? (int)$parts[4] : 0;
-                    
-                    $itemAncMap["$sec-$id"] = [
-                        'name1' => $ancNames[$opt1] ?? null,
-                        'name2' => ($opt2 > 0) ? ($ancNames[$opt2] ?? null) : null
-                    ];
+                $itemsToInsert = [];
+                $section = -1;
+
+                foreach ($lines as $line) {
+                    $line = trim($line);
+                    if ($line === '' || strpos($line, '//') === 0) continue;
+                    if (strtolower($line) === 'end') { $section = -1; continue; }
+                    $secCheck = trim(explode('//', $line)[0]);
+                    if (is_numeric($secCheck) && strlen($secCheck) <= 2) { $section = (int)$secCheck; continue; }
+
+                    if ($section >= 0 && $section <= 15) {
+                        if (preg_match('/^(\d+)\s+(?:-?\d+\s+){2}(\d+)\s+(\d+).*?"([^"]+)"/', $line, $matches)) {
+                            $id = (int)$matches[1];
+                            $ancData = $itemAncMap["$section-$id"] ?? null;
+
+                            // Organize folders for images
+                            $targetFolder = "../../uploads/items/" . $section . "/";
+                            if (!is_dir($targetFolder)) { mkdir($targetFolder, 0777, true); }
+
+                            $itemsToInsert[] = [
+                                'type' => $section, 'id' => $id, 'name' => $matches[4],
+                                'w' => (int)$matches[2], 'h' => (int)$matches[3],
+                                'sck' => (preg_match("/\b$section\s+$id\b/", $sockets)) ? 1 : 0,
+                                'opt380' => (preg_match("/\b$section\s+$id\b/", $item380)) ? 1 : 0,
+                                'ancName1' => $ancData['name1'] ?? null,
+                                'ancName2' => $ancData['name2'] ?? null
+                            ];
+                        }
+                    }
                 }
-            }
-        }
 
-        // --- 3. PROCESS ITEM.TXT ---
-        $sockets = (isset($_FILES['socket_txt']) && $_FILES['socket_txt']['error'] == 0) ? file_get_contents($_FILES['socket_txt']['tmp_name']) : '';
-        $item380 = (isset($_FILES['380_txt']) && $_FILES['380_txt']['error'] == 0) ? file_get_contents($_FILES['380_txt']['tmp_name']) : '';
-        $lines = file($_FILES['item_txt']['tmp_name'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-        
-        $itemsToInsert = [];
-        $section = -1;
-
-        foreach ($lines as $line) {
-            $line = trim($line);
-            if ($line === '' || strpos($line, '//') === 0) continue;
-            if (strtolower($line) === 'end') { $section = -1; continue; }
-            $secCheck = trim(explode('//', $line)[0]);
-            if (is_numeric($secCheck) && strlen($secCheck) <= 2) { $section = (int)$secCheck; continue; }
-
-            if ($section >= 0 && $section <= 15) {
-                if (preg_match('/^(\d+)\s+(?:-?\d+\s+){2}(\d+)\s+(\d+).*?"([^"]+)"/', $line, $matches)) {
-                    $id = (int)$matches[1];
-                    $ancData = $itemAncMap["$section-$id"] ?? null;
-
-                    $itemsToInsert[] = [
-                        'type' => $section, 'id' => $id, 'name' => $matches[4],
-                        'w' => (int)$matches[2], 'h' => (int)$matches[3],
-                        'sck' => (preg_match("/\b$section\s+$id\b/", $sockets)) ? 1 : 0,
-                        'opt380' => (preg_match("/\b$section\s+$id\b/", $item380)) ? 1 : 0,
-                        'ancName1' => $ancData['name1'] ?? null,
-                        'ancName2' => $ancData['name2'] ?? null
-                    ];
+                // 4. SYNC TO DATABASE
+                $target = $_POST['upload_target'] ?? 'both';
+                $servers = ($target === 'both') ? ['mid_rate', 'hard_rate'] : [$target];
+                foreach ($servers as $srv) {
+                    $db = $settings['database'][$srv];
+                    $conn = sqlsrv_connect($db['host'], ["Database" => $db['name'], "Uid" => $db['user'], "PWD" => decrypt_data($db['pass_encrypted'], ENCRYPTION_KEY), "TrustServerCertificate" => 1, "Encrypt" => 0]);
+                    if ($conn) {
+                        sqlsrv_query($conn, "TRUNCATE TABLE WebshopItems");
+                        foreach ($itemsToInsert as $i) {
+                            $sql = "INSERT INTO WebshopItems (ItemType, ItemIndex, ItemName, Width, Height, BasePrice, AllowAncient, AncName1, AncName2, AllowSocket, Allow380) 
+                                    VALUES (?, ?, ?, ?, ?, 100, ?, ?, ?, ?, ?)";
+                            sqlsrv_query($conn, $sql, [$i['type'], $i['id'], $i['name'], $i['w'], $i['h'], ($i['ancName1'] ? 1 : 0), $i['ancName1'], $i['ancName2'], $i['sck'], $i['opt380']]);
+                        }
+                        sqlsrv_close($conn);
+                    }
                 }
+                $status = "Success: Webshop DB and Image folders synchronized!";
             }
-        }
-
-        // --- 4. SYNC TO DATABASE ---
-        $target = $_POST['upload_target'] ?? 'both';
-        $servers = ($target === 'both') ? ['mid_rate', 'hard_rate'] : [$target];
-        foreach ($servers as $srv) {
-            $db = $settings['database'][$srv];
-            $conn = sqlsrv_connect($db['host'], ["Database" => $db['name'], "Uid" => $db['user'], "PWD" => decrypt_data($db['pass_encrypted'], ENCRYPTION_KEY), "TrustServerCertificate" => 1, "Encrypt" => 0]);
-            if ($conn) {
-                sqlsrv_query($conn, "TRUNCATE TABLE WebshopItems");
-                foreach ($itemsToInsert as $i) {
-                    $sql = "INSERT INTO WebshopItems (ItemType, ItemIndex, ItemName, Width, Height, BasePrice, AllowAncient, AncName1, AncName2, AllowSocket, Allow380) 
-                            VALUES (?, ?, ?, ?, ?, 100, ?, ?, ?, ?, ?)";
-                    sqlsrv_query($conn, $sql, [
-                        $i['type'], $i['id'], $i['name'], $i['w'], $i['h'], 
-                        ($i['ancName1'] ? 1 : 0), $i['ancName1'], $i['ancName2'], $i['sck'], $i['opt380']
-                    ]);
-                }
-                sqlsrv_close($conn);
-            }
-        }
-        $status = "Success: Ancient names (AncName1/2) populated!";
-    }
-    break;
+            break;
 
         case 'save_site_settings':
 			if (isset($_FILES['favicon_file']) && $_FILES['favicon_file']['error'] == 0) {

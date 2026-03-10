@@ -977,17 +977,22 @@ async function checkoutCart() {
 
 function updateItemPreview() {
     const itemSelect = document.getElementById('shop-item');
-    if (!itemSelect.value) return;
-
-    const [itemType, itemIndex] = itemSelect.value.split('-');
     const previewImg = document.getElementById('item-preview-image');
+    
+    if (!itemSelect || !itemSelect.value || !previewImg) return;
 
-    // Update the image source based on the Type-Index format
-    previewImg.src = `uploads/items/${itemType}-${itemIndex}.gif`;
+    const [type, index] = itemSelect.value.split('-');
 
-    // Fallback if the image doesn't exist
+    // Targets the new folder structure: uploads/items/Category/ID.gif
+    previewImg.src = `uploads/items/${type}/${index}.gif`;
+
+    // --- FALLBACK LOGIC ---
     previewImg.onerror = function() {
-        this.src = 'uploads/items/placeholder.gif';
+        // Points to your requested noimage.gif
+        this.src = 'uploads/items/noimage.gif';
+        
+        // Prevent infinite loops if noimage.gif itself is missing
+        this.onerror = null; 
     };
 }
 
