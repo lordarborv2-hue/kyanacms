@@ -991,6 +991,15 @@ function updateItemPreview() {
     };
 }
 
+function onItemSelect(data) {
+    const nameLabel = document.getElementById('item-display-name');
+    if (data.AncientName) {
+        nameLabel.innerHTML = `<span style="color: #00ff00;">${data.AncientName}</span> ${data.ItemName}`;
+    } else {
+        nameLabel.textContent = data.ItemName;
+    }
+}
+
 // Ensure this runs whenever the item dropdown changes
 document.getElementById('shop-item').addEventListener('change', updateItemPreview);
 

@@ -1,16 +1,16 @@
 {
-    "website_title": "Kyana CMS",
-    "favicon_url": "uploads\/favicon-68e3b0741f892.png",
+    "website_title": "Nebula M-U ",
+    "favicon_url": "uploads\/favicon-69a7a71db529f.jpg",
     "security": {
         "session_timeout_minutes": 30,
         "user_session_timeout_minutes": 10
     },
     "database": {
         "mid_rate": {
-            "host": "127.0.0.1",
-            "name": "MuOnlineS6",
+            "host": "139.99.24.220",
+            "name": "MuOnlineTest",
             "user": "sa",
-            "pass_encrypted": "LzdZOERiVnFrRmtOTHJxMVhwejBvZlp0TnZHM2FzWjdxT2R2QkU3S1pUcz06Okjk5pf6Hl0vv83ClTENjEI="
+            "pass_encrypted": "U0dRMHlla2pzSVUrckRLRzRBR1oyN01NNzVPbHFOSnd0Q0ZrY011RjFqMD06OseZu7RKbWIy3qaDLdMGV94="
         },
         "hard_rate": {
             "host": "139.99.24.220",
@@ -27,9 +27,9 @@
         "label": "Mega",
         "url": "https:\/\/mega.nz\/file\/Z8c1DRZa#hWrmkbiZZGZW31x1_sQZSwSJLOW-18vmeEH7NM3bgvs"
     },
-    "wallpaper_url": "uploads\/wallpaper-69a1228f9579b.jpg",
+    "wallpaper_url": "uploads\/wallpaper-69a78d140aba4.png",
     "mid_rate_server": {
-        "name": "Server 1",
+        "name": "Nebula",
         "address": "127.0.0.1",
         "port": 55902,
         "visible": true
@@ -38,7 +38,7 @@
         "name": "Server 2",
         "address": "139.99.24.220",
         "port": 55902,
-        "visible": true
+        "visible": false
     },
     "conversion_rates": {
         "wcoinc": 30,
@@ -156,7 +156,7 @@
         }
     },
     "server_names": {
-        "mid_rate": "Test Server",
+        "mid_rate": "Nebula 1",
         "hard_rate": "Server 2"
     }
 }

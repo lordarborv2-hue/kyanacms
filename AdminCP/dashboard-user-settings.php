@@ -105,10 +105,10 @@ $rates = $settings['conversion_rates'] ?? ['wcoinc' => 1, 'wcoinp' => 1, 'goblin
                 <input type="file" name="item_txt" accept=".txt" required style="width: 100%;">
             </div>
             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px;">
-                <div class="form-group"><label>SocketItem.txt:</label><input type="file" name="socket_txt" accept=".txt" style="width: 100%;"></div>
-                <div class="form-group"><label>Item380.txt:</label><input type="file" name="380_txt" accept=".txt" style="width: 100%;"></div>
-                <div class="form-group"><label>AncientOption.txt:</label><input type="file" name="anc_opt_txt" accept=".txt" style="width: 100%;"></div>
-                <div class="form-group"><label>ItemSetType.txt:</label><input type="file" name="ancient_txt" accept=".txt" style="width: 100%;"></div>
+                <div class="form-group"><label>SocketItemType.txt:</label><input type="file" name="socket_txt" accept=".txt" style="width: 100%;"></div>
+                <div class="form-group"><label>380ItemType.txt:</label><input type="file" name="380_txt" accept=".txt" style="width: 100%;"></div>
+                <div class="form-group"><label>SetItemOption.txt:</label><input type="file" name="anc_opt_txt" accept=".txt" style="width: 100%;"></div>
+                <div class="form-group"><label>SetItemType.txt:</label><input type="file" name="ancient_txt" accept=".txt" style="width: 100%;"></div>
             </div>
 
             <button type="submit" class="button" style="width:100%; background:#dc3545;">Upload & Overwrite DB</button>

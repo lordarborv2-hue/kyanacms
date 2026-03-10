@@ -258,115 +258,167 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 			
 
         case 'upload_item_txt':
-            if (isset($_FILES['item_txt']) && $_FILES['item_txt']['error'] == 0) {
-                $lines = file($_FILES['item_txt']['tmp_name'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
-                $itemsToInsert = [];
-                $section = -1;
-
-                foreach ($lines as $index => $line) {
-                    if ($index === 0) $line = preg_replace('/^[\xef\xbb\xbf]+/', '', $line); 
-                    $line = trim($line);
-                    if ($line === '' || strpos($line, '//') === 0) continue; 
-                    if (strtolower($line) === 'end') { $section = -1; continue; }
-                    
-                    $secCheck = trim(explode('//', $line)[0]);
-                    if (is_numeric($secCheck) && strlen($secCheck) <= 2) { $section = (int)$secCheck; continue; }
-
-                    if ($section >= 0 && $section <= 15) {
-                        if (preg_match('/^(\d+)\s+(?:-?\d+\s+){2}(\d+)\s+(\d+).*?"([^"]+)"/', $line, $matches)) {
-                            $id = (int)$matches[1]; $w = (int)$matches[2]; $h = (int)$matches[3]; $name = $matches[4];
-                            $itemsToInsert["$section-$id"] = [
-                                'type' => $section, 'id' => $id, 'name' => $name, 'w' => $w, 'h' => $h,
-                                'sck' => 0, 'maxSck' => 0, 'opt380' => 0, 'anc' => 0, 'ancName1' => null, 'ancName2' => null
-                            ];
-                        }
-                    }
-                }
-
-                $target = $_POST['upload_target'] ?? 'both';
-                $servers = ($target === 'both') ? ['mid_rate', 'hard_rate'] : [$target];
-                $totalParsed = count($itemsToInsert);
-                $serversUpdated = 0;
-
-                foreach ($servers as $srv) {
-                    $db_config = $settings['database'][$srv];
-                    if (empty($db_config['host'])) continue;
-
-                    $conn = sqlsrv_connect($db_config['host'], [
-                        "Database" => $db_config['name'], "Uid" => $db_config['user'],
-                        "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY),
-                        "TrustServerCertificate" => 1, "Encrypt" => 0
-                    ]);
-
-                    if ($conn) {
-                        $createTableSql = "IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='WebshopItems' and xtype='U')
-                        CREATE TABLE WebshopItems (
-                            ID int IDENTITY(1,1) PRIMARY KEY, ItemType int, ItemIndex int, ItemName varchar(100), Width int, Height int,
-                            BasePrice int DEFAULT 100, IsActive bit DEFAULT 1, AllowExc bit DEFAULT 1, AllowLevel bit DEFAULT 1,
-                            Allow380 bit DEFAULT 0, AllowHarmony bit DEFAULT 1, AllowSocket bit DEFAULT 0, MaxExc int DEFAULT 6, MaxSocket int DEFAULT 0,
-                            AllowLuck bit DEFAULT 1, AllowSkill bit DEFAULT 1, AllowAncient bit DEFAULT 0, AncName1 varchar(50), AncName2 varchar(50)
-                        )";
-                        
-                        $create = sqlsrv_query($conn, $createTableSql);
-                        if ($create === false) { die("<h2 style='color:red;'>SQL Table Error on $srv</h2><pre>".print_r(sqlsrv_errors(), true)."</pre>"); }
-
-                        sqlsrv_query($conn, "TRUNCATE TABLE WebshopItems");
-                        sqlsrv_begin_transaction($conn);
-                        
-                        $hasErrors = false;
-                        foreach ($itemsToInsert as $i) {
-                            $sql = "INSERT INTO WebshopItems (ItemType, ItemIndex, ItemName, Width, Height, BasePrice, AllowExc, AllowLevel, Allow380, AllowHarmony, AllowSocket, MaxExc, MaxSocket, AllowLuck, AllowSkill, AllowAncient, AncName1, AncName2) VALUES (?, ?, ?, ?, ?, 100, 1, 1, ?, 1, ?, 6, ?, 1, 1, ?, ?, ?)";
-                            $stmt = sqlsrv_query($conn, $sql, [
-                                $i['type'], $i['id'], $i['name'], $i['w'], $i['h'], 
-                                $i['opt380'], $i['sck'], $i['maxSck'], $i['anc'], $i['ancName1'], $i['ancName2']
-                            ]);
-                            if ($stmt === false) {
-                                $hasErrors = true;
-                                echo "<h2 style='color:red;'>SQL Insert Error on Item: {$i['name']} ($srv)</h2><pre>";
-                                die(print_r(sqlsrv_errors(), true));
-                            }
-                        }
-                        
-                        if ($hasErrors) { sqlsrv_rollback($conn); } else { sqlsrv_commit($conn); $serversUpdated++; }
-                        sqlsrv_close($conn);
-                    } else {
-                        die("<h2 style='color:red;'>Database Connection Error on $srv</h2><pre>".print_r(sqlsrv_errors(), true)."</pre>");
-                    }
-                }
-                
-                $status = ($serversUpdated > 0) ? "Successfully synced $totalParsed items!" : "Error: Could not connect to databases.";
-
-            } else { $status = "Error uploading Item.txt."; }
-            $page = 'user_settings';
-            break;
-
-        case 'save_site_settings':
-            if (isset($_FILES['favicon_file']) && $_FILES['favicon_file']['error'] == 0) {
-                $target_dir = '../../uploads/';
-                $file = $_FILES['favicon_file'];
-                $extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
-                if ($file['size'] <= 1048576 && in_array($extension, ['ico', 'png', 'jpg', 'jpeg'])) {
-                    $new_filename = 'favicon-' . uniqid() . '.' . $extension;
-                    if (move_uploaded_file($file['tmp_name'], $target_dir . $new_filename)) {
-                        $old_favicon = $settings['favicon_url'] ?? '';
-                        if ($old_favicon && basename($old_favicon) !== 'default-favicon.ico' && file_exists('../../' . $old_favicon)) unlink('../../' . $old_favicon);
-                        $settings['favicon_url'] = 'uploads/' . $new_filename;
-                    }
+    if (isset($_FILES['item_txt']) && $_FILES['item_txt']['error'] == 0) {
+        // --- 1. PARSE ANCIENT NAMES (SetItemOption.txt) ---
+        $ancNames = [];
+        if (isset($_FILES['anc_opt_txt']) && $_FILES['anc_opt_txt']['error'] == 0) {
+            $optLines = file($_FILES['anc_opt_txt']['tmp_name'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($optLines as $oLine) {
+                // Matches Index and Name (e.g., 1 "Warrior")
+                if (preg_match('/^(\d+)\s+"([^"]+)"/', trim($oLine), $oMatches)) {
+                    $ancNames[(int)$oMatches[1]] = $oMatches[2];
                 }
             }
-            $settings['website_title'] = $_POST['website_title'];
-            $settings['show_online_count'] = (bool)($_POST['show_online'] ?? true);
-            $settings['server_names']['mid_rate'] = $_POST['mid_name']; 
-            $settings['mid_rate_server']['address'] = $_POST['mid_address'];
-            $settings['mid_rate_server']['port'] = (int)$_POST['mid_port'];
-            $settings['mid_rate_server']['visible'] = (bool)($_POST['mid_visible'] ?? true); 
-            $settings['server_names']['hard_rate'] = $_POST['hard_name'];
-            $settings['hard_rate_server']['address'] = $_POST['hard_address'];
-            $settings['hard_rate_server']['port'] = (int)$_POST['hard_port'];
-            $settings['hard_rate_server']['visible'] = (bool)($_POST['hard_visible'] ?? true);
-            $page = 'settings';
-            break;
+        }
 
+        // --- 2. MAP ITEMS TO ANCIENT NAMES (SetItemType.txt) ---
+        $itemAncMap = [];
+        if (isset($_FILES['ancient_txt']) && $_FILES['ancient_txt']['error'] == 0) {
+            $ancLines = file($_FILES['ancient_txt']['tmp_name'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+            foreach ($ancLines as $aLine) {
+                $aLine = trim(explode('//', $aLine)[0]);
+                if (empty($aLine) || strtolower($aLine) == 'end') continue;
+                
+                $parts = preg_split('/\s+/', $aLine);
+                if (count($parts) >= 4) { // Section, Type, StatType, OptionIndex1, OptionIndex2
+                    $sec = $parts[0]; $id = $parts[1]; 
+                    $opt1 = (int)$parts[3];
+                    $opt2 = isset($parts[4]) ? (int)$parts[4] : 0;
+                    
+                    $itemAncMap["$sec-$id"] = [
+                        'name1' => $ancNames[$opt1] ?? null,
+                        'name2' => ($opt2 > 0) ? ($ancNames[$opt2] ?? null) : null
+                    ];
+                }
+            }
+        }
+
+        // --- 3. PROCESS ITEM.TXT ---
+        $sockets = (isset($_FILES['socket_txt']) && $_FILES['socket_txt']['error'] == 0) ? file_get_contents($_FILES['socket_txt']['tmp_name']) : '';
+        $item380 = (isset($_FILES['380_txt']) && $_FILES['380_txt']['error'] == 0) ? file_get_contents($_FILES['380_txt']['tmp_name']) : '';
+        $lines = file($_FILES['item_txt']['tmp_name'], FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES);
+        
+        $itemsToInsert = [];
+        $section = -1;
+
+        foreach ($lines as $line) {
+            $line = trim($line);
+            if ($line === '' || strpos($line, '//') === 0) continue;
+            if (strtolower($line) === 'end') { $section = -1; continue; }
+            $secCheck = trim(explode('//', $line)[0]);
+            if (is_numeric($secCheck) && strlen($secCheck) <= 2) { $section = (int)$secCheck; continue; }
+
+            if ($section >= 0 && $section <= 15) {
+                if (preg_match('/^(\d+)\s+(?:-?\d+\s+){2}(\d+)\s+(\d+).*?"([^"]+)"/', $line, $matches)) {
+                    $id = (int)$matches[1];
+                    $ancData = $itemAncMap["$section-$id"] ?? null;
+
+                    $itemsToInsert[] = [
+                        'type' => $section, 'id' => $id, 'name' => $matches[4],
+                        'w' => (int)$matches[2], 'h' => (int)$matches[3],
+                        'sck' => (preg_match("/\b$section\s+$id\b/", $sockets)) ? 1 : 0,
+                        'opt380' => (preg_match("/\b$section\s+$id\b/", $item380)) ? 1 : 0,
+                        'ancName1' => $ancData['name1'] ?? null,
+                        'ancName2' => $ancData['name2'] ?? null
+                    ];
+                }
+            }
+        }
+
+        // --- 4. SYNC TO DATABASE ---
+        $target = $_POST['upload_target'] ?? 'both';
+        $servers = ($target === 'both') ? ['mid_rate', 'hard_rate'] : [$target];
+        foreach ($servers as $srv) {
+            $db = $settings['database'][$srv];
+            $conn = sqlsrv_connect($db['host'], ["Database" => $db['name'], "Uid" => $db['user'], "PWD" => decrypt_data($db['pass_encrypted'], ENCRYPTION_KEY), "TrustServerCertificate" => 1, "Encrypt" => 0]);
+            if ($conn) {
+                sqlsrv_query($conn, "TRUNCATE TABLE WebshopItems");
+                foreach ($itemsToInsert as $i) {
+                    $sql = "INSERT INTO WebshopItems (ItemType, ItemIndex, ItemName, Width, Height, BasePrice, AllowAncient, AncName1, AncName2, AllowSocket, Allow380) 
+                            VALUES (?, ?, ?, ?, ?, 100, ?, ?, ?, ?, ?)";
+                    sqlsrv_query($conn, $sql, [
+                        $i['type'], $i['id'], $i['name'], $i['w'], $i['h'], 
+                        ($i['ancName1'] ? 1 : 0), $i['ancName1'], $i['ancName2'], $i['sck'], $i['opt380']
+                    ]);
+                }
+                sqlsrv_close($conn);
+            }
+        }
+        $status = "Success: Ancient names (AncName1/2) populated!";
+    }
+    break;
+
+        case 'save_site_settings':
+			if (isset($_FILES['favicon_file']) && $_FILES['favicon_file']['error'] == 0) {
+				$target_dir = '../../uploads/';
+				$file = $_FILES['favicon_file'];
+				$allowed = ['ico', 'png', 'jpg', 'jpeg'];
+				$extension = strtolower(pathinfo($file['name'], PATHINFO_EXTENSION));
+			
+				// Check size (1MB) and extension
+				if ($file['size'] <= 1048576 && in_array($extension, $allowed)) {
+					$new_filename = 'favicon-' . uniqid() . '.' . $extension;
+					
+					if (move_uploaded_file($file['tmp_name'], $target_dir . $new_filename)) {
+						// Clean up the old file to save space
+						$old_favicon = $settings['favicon_url'] ?? '';
+						if (!empty($old_favicon) && file_exists('../../' . $old_favicon)) {
+							// Don't delete it if it's the default icon
+							if (strpos($old_favicon, 'default') === false) {
+								unlink('../../' . $old_favicon);
+							}
+						}
+						$settings['favicon_url'] = 'uploads/' . $new_filename;
+					} else {
+						$status = "Error: Failed to move uploaded file. Check folder permissions.";
+					}
+				} else {
+					$status = "Error: Invalid file size (Max 1MB) or format (ICO/PNG/JPG).";
+				}
+			}
+			// Core Site Settings
+			$settings['website_title'] = $_POST['website_title'];
+			$settings['show_online_count'] = (bool)$_POST['show_online'];
+		
+			// Server 1 (Mid Rate) Configuration
+			$settings['mid_rate_server']['name'] = $_POST['mid_name']; // Matches dashboard-settings.php input
+			$settings['mid_rate_server']['address'] = $_POST['mid_address'];
+			$settings['mid_rate_server']['port'] = (int)$_POST['mid_port'];
+			$settings['mid_rate_server']['visible'] = (bool)$_POST['mid_visible'];
+		
+			// Server 2 (Hard Rate) Configuration
+			$settings['hard_rate_server']['name'] = $_POST['hard_name'];
+			$settings['hard_rate_server']['address'] = $_POST['hard_address'];
+			$settings['hard_rate_server']['port'] = (int)$_POST['hard_port'];
+			$settings['hard_rate_server']['visible'] = (bool)$_POST['hard_visible'];
+		
+			$page = 'settings';
+			break;
+		
+		case 'save_database':
+    // Server 1 (Mid Rate) Database Settings
+    $settings['database']['mid_rate']['host'] = $_POST['mid_db_host'];
+    $settings['database']['mid_rate']['name'] = $_POST['mid_db_name'];
+    $settings['database']['mid_rate']['user'] = $_POST['mid_db_user'];
+    
+    // Only update password if a new one is provided
+    if (!empty($_POST['mid_db_pass'])) {
+        $settings['database']['mid_rate']['pass_encrypted'] = encrypt_data($_POST['mid_db_pass'], ENCRYPTION_KEY);
+    }
+
+    // Server 2 (Hard Rate) Database Settings
+    $settings['database']['hard_rate']['host'] = $_POST['hard_db_host'];
+    $settings['database']['hard_rate']['name'] = $_POST['hard_db_name'];
+    $settings['database']['hard_rate']['user'] = $_POST['hard_db_user'];
+    
+    if (!empty($_POST['hard_db_pass'])) {
+        $settings['database']['hard_rate']['pass_encrypted'] = encrypt_data($_POST['hard_db_pass'], ENCRYPTION_KEY);
+    }
+
+    $page = 'database';
+    $status = "Database configurations updated successfully.";
+    break;
+		
         case 'save_user_settings': 
             $admin_srv = $_SESSION['admin_server'] ?? 'mid';
             $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
