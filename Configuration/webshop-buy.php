@@ -87,8 +87,12 @@ while ($row = sqlsrv_fetch_array($sizeQuery, SQLSRV_FETCH_ASSOC)) {
     $itemSizes[$row['ItemType'] . '-' . $row['ItemIndex']] = ['w' => $row['Width'], 'h' => $row['Height']];
 }
 
-$grid = array_fill(0, 120, false);
-for ($i = 0; $i < 120; $i++) {
+// Dynamically detect warehouse slot count from actual hex length (avoids out-of-bounds writes)
+$totalSlots = (int)(strlen($currentWarehouseHex) / 32); // each slot = 16 bytes = 32 hex chars
+$totalRows  = (int)($totalSlots / 8);                   // warehouse is always 8 columns wide
+
+$grid = array_fill(0, $totalSlots, false);
+for ($i = 0; $i < $totalSlots; $i++) {
     if ($grid[$i]) continue; 
     $itemHex = substr($currentWarehouseHex, $i * 32, 32);
     if (strlen($itemHex) < 32 || strtoupper($itemHex) === 'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF') continue; 
@@ -103,7 +107,7 @@ for ($i = 0; $i < 120; $i++) {
     $x = $i % 8; $y = floor($i / 8);
     for ($dy = 0; $dy < $h; $dy++) {
         for ($dx = 0; $dx < $w; $dx++) {
-            if (($x + $dx) < 8 && ($y + $dy) < 15) { $grid[($x + $dx) + (($y + $dy) * 8)] = true; }
+            if (($x + $dx) < 8 && ($y + $dy) < $totalRows) { $grid[($x + $dx) + (($y + $dy) * 8)] = true; }
         }
     }
 }
@@ -112,7 +116,7 @@ $newItemW = $itemData['Width'];
 $newItemH = $itemData['Height'];
 $foundSlot = -1;
 
-for ($y = 0; $y <= 15 - $newItemH; $y++) {
+for ($y = 0; $y <= $totalRows - $newItemH; $y++) {
     for ($x = 0; $x <= 8 - $newItemW; $x++) {
         $canFit = true;
         for ($dy = 0; $dy < $newItemH; $dy++) {
@@ -161,13 +165,55 @@ $hex = strtoupper($hex);
 // 9. Inject Item
 $newWarehouseHex = substr_replace($currentWarehouseHex, $hex, $foundSlot * 32, 32);
 
-// 10. Save to Database
+// 10. Save to Database (wrapped in transaction so warehouse + credits are atomic)
+sqlsrv_begin_transaction($conn);
+
 $updateSql = "UPDATE Warehouse SET Items = CONVERT(VARBINARY(MAX), ?, 2) WHERE AccountID = ?";
 $updateStmt = sqlsrv_query($conn, $updateSql, [$newWarehouseHex, $username]);
-if (!$updateStmt) { echo json_encode(['success' => false, 'message' => 'Failed to deliver item to warehouse.']); exit; }
+if (!$updateStmt) {
+    sqlsrv_rollback($conn);
+    echo json_encode(['success' => false, 'message' => 'Failed to deliver item to warehouse.']); exit;
+}
 
 // 11. Deduct Credits
-sqlsrv_query($conn, "UPDATE WebCredits SET credits = credits - ? WHERE memb___id = ?", [$totalPrice, $username]);
+$deductStmt = sqlsrv_query($conn, "UPDATE WebCredits SET credits = credits - ? WHERE memb___id = ?", [$totalPrice, $username]);
+if (!$deductStmt) {
+    sqlsrv_rollback($conn);
+    echo json_encode(['success' => false, 'message' => 'Failed to deduct credits.']); exit;
+}
+
+// 12. Log the Purchase
+$excBitNames = [
+    1 => 'Exc Opt 1 (+Mana/8)',
+    2 => 'Exc Opt 2 (+HP)',
+    4 => 'Exc Opt 3 (+Speed)',
+    8 => 'Exc Opt 4 (+Dmg/Ref)',
+    16 => 'Exc Opt 5 (+Zen)',
+    32 => 'Exc Opt 6 (Exc Dmg/Zen)',
+];
+
+$optList = [];
+if ($level > 0) $optList[] = "+$level";
+if ($luck)      $optList[] = "Luck";
+if ($skill)     $optList[] = "Skill";
+
+if ($ancient == 1 && !empty($itemData['AncName1']))      $optList[] = "Ancient: " . $itemData['AncName1'];
+elseif ($ancient == 2 && !empty($itemData['AncName2']))  $optList[] = "Ancient: " . $itemData['AncName2'];
+elseif ($ancient > 0)                                    $optList[] = "Ancient";
+
+if ($opt380)        $optList[] = "380";
+if ($harmony > 0)   $optList[] = "Harmony";
+if ($sockets > 0)   $optList[] = "Sockets: $sockets";
+
+foreach ($excBitNames as $bit => $name) {
+    if ($excOpt & $bit) $optList[] = $name;
+}
+
+$fullOptions = implode(', ', $optList);
+$logSql = "INSERT INTO Webshop_Logs (AccountID, ItemName, Price, ServerKey, ItemOptions) VALUES (?, ?, ?, ?, ?)";
+sqlsrv_query($conn, $logSql, [$username, $itemData['ItemName'], $totalPrice, $server_key, $fullOptions]);
+
+sqlsrv_commit($conn);
 
 echo json_encode(['success' => true, 'message' => "Purchase successful! Item placed in Warehouse."]);
 sqlsrv_close($conn);

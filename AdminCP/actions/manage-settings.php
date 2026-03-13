@@ -28,6 +28,44 @@ if (isset($_GET['action']) && $_GET['action'] === 'lookup_credits') {
     sqlsrv_close($conn); exit;
 }
 
+// --- NEW HANDLER: View Webshop Logs ---
+if (isset($_GET['action']) && $_GET['action'] === 'view_webshop_logs') {
+    $settings = json_decode(file_get_contents('../../Configuration/settings.json'), true);
+    $admin_srv = $_SESSION['admin_server'] ?? 'mid';
+    $server_key = ($admin_srv === 'hard') ? 'hard_rate' : 'mid_rate';
+    $db_config = $settings['database'][$server_key]; 
+    
+    $conn = sqlsrv_connect($db_config['host'], [
+        "Database" => $db_config['name'], 
+        "Uid" => $db_config['user'], 
+        "PWD" => decrypt_data($db_config['pass_encrypted'], ENCRYPTION_KEY), 
+        "TrustServerCertificate" => 1, "Encrypt" => 0
+    ]);
+
+    if (!$conn) { echo "Database connection failed."; exit; }
+
+    // Fetch the latest 50 logs
+    $stmt = sqlsrv_query($conn, "SELECT TOP 50 * FROM Webshop_Logs ORDER BY PurchaseDate DESC");
+    
+    echo '<table style="width:100%; border-collapse: collapse; font-size: 0.9em; text-align: left;">';
+    echo '<tr style="background:#444; color:white;"><th style="padding:10px;">Date</th><th style="padding:10px;">Account</th><th style="padding:10px;">Item & Options</th><th style="padding:10px;">Price</th></tr>';
+    
+    while ($row = sqlsrv_fetch_array($stmt, SQLSRV_FETCH_ASSOC)) {
+        $date = $row['PurchaseDate']->format('Y-m-d H:i');
+        // Display the item name and the detailed options below it
+        echo "<tr style='border-bottom: 1px solid #ddd;'>
+                <td style='padding:8px;'>{$date}</td>
+                <td style='padding:8px;'><strong>{$row['AccountID']}</strong></td>
+                <td style='padding:8px;'>
+                    <div>{$row['ItemName']}</div>
+                    <div style='font-size:0.8em; color:#666;'>{$row['ItemOptions']}</div>
+                </td>
+                <td style='padding:8px; color: #d35400;'>{$row['Price']} Credits</td>
+              </tr>";
+    }
+    echo '</table>'; exit;
+}
+
 if (isset($_GET['action']) && $_GET['action'] === 'load_category_items') {
     $settings = json_decode(file_get_contents('../../Configuration/settings.json'), true);
     $cat = (int)$_GET['cat'];

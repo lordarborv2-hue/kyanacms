@@ -1,0 +1,162 @@
+{
+    "website_title": "Nebula M-U ",
+    "favicon_url": "uploads\/favicon-69a7a71db529f.jpg",
+    "security": {
+        "session_timeout_minutes": 30,
+        "user_session_timeout_minutes": 10
+    },
+    "database": {
+        "mid_rate": {
+            "host": "139.99.24.220",
+            "name": "MuOnlineTest",
+            "user": "sa",
+            "pass_encrypted": "U0dRMHlla2pzSVUrckRLRzRBR1oyN01NNzVPbHFOSnd0Q0ZrY011RjFqMD06OseZu7RKbWIy3qaDLdMGV94="
+        },
+        "hard_rate": {
+            "host": "139.99.24.220",
+            "name": "MuOnlineMid",
+            "user": "sa",
+            "pass_encrypted": "VEtnWjA5OEdRajk2a053VFhRMERjeGRwVVorY05RZmdPcTZWU3B5M3hLST06OptYPxZk1iO2xvWlYpEpY2E="
+        }
+    },
+    "download_link_1": {
+        "label": "Mediafire",
+        "url": "https:\/\/www.mediafire.com\/file\/oq31x9jfct5hys6\/KiraMU.rar\/file"
+    },
+    "download_link_2": {
+        "label": "Mega",
+        "url": "https:\/\/mega.nz\/file\/Z8c1DRZa#hWrmkbiZZGZW31x1_sQZSwSJLOW-18vmeEH7NM3bgvs"
+    },
+    "wallpaper_url": "uploads\/wallpaper-69a78d140aba4.png",
+    "mid_rate_server": {
+        "name": "Nebula",
+        "address": "127.0.0.1",
+        "port": 55902,
+        "visible": true
+    },
+    "hard_rate_server": {
+        "name": "Server 2",
+        "address": "139.99.24.220",
+        "port": 55902,
+        "visible": false
+    },
+    "conversion_rates": {
+        "wcoinc": 30,
+        "wcoinp": 25,
+        "goblin": 5
+    },
+    "webshop": {
+        "price_level": 10,
+        "price_exc": 50,
+        "price_luck_skill": 25
+    },
+    "show_online_count": true,
+    "tracked_items": [
+        {
+            "name": "Jewel of Bless",
+            "type": 14,
+            "index": 13,
+            "bundle": 30,
+            "col": "Bless"
+        },
+        {
+            "name": "Jewel of Soul",
+            "type": 14,
+            "index": 14,
+            "bundle": 31,
+            "col": "Soul"
+        },
+        {
+            "name": "Jewel of Chaos",
+            "type": 12,
+            "index": 15,
+            "bundle": 141,
+            "col": "Chaos"
+        },
+        {
+            "name": "Jewel of Life",
+            "type": 14,
+            "index": 16,
+            "bundle": 136,
+            "col": "Life"
+        },
+        {
+            "name": "Jewel of Creation",
+            "type": 14,
+            "index": 22,
+            "bundle": 137,
+            "col": "Creation"
+        },
+        {
+            "name": "Jewel of Harmony",
+            "type": 14,
+            "index": 42,
+            "bundle": 140,
+            "col": "Harmony"
+        },
+        {
+            "name": "Jewel of Guardian",
+            "type": 14,
+            "index": 31,
+            "bundle": 0,
+            "col": "Guardian"
+        },
+        {
+            "name": "Short Sword",
+            "type": 0,
+            "index": 1,
+            "bundle": 0,
+            "col": ""
+        }
+    ],
+    "qr_ph": {
+        "enabled": true,
+        "ratio": 100,
+        "mid_rate": {
+            "enabled": true,
+            "ratio": 100
+        },
+        "hard_rate": {
+            "enabled": false,
+            "ratio": 100
+        }
+    },
+    "paypal": {
+        "mid_rate": {
+            "enabled": false,
+            "mode": "sandbox",
+            "currency": "USD",
+            "rate": 100,
+            "client_id": "dWlWdjE1bWJFcEl1VVZuek1pcCt1cExsQmlieGhwOXpwVlgvejZJMmROMmE3UnR2dkx3cVhrd3k0bDlqNFRYWUlTZ3Y4TnI3eXQra1Z2ajFZQzBLdXhScjdKMC9TSUdLZkd1ZDlGTXF1NEVKSFFrUUNnYnA0eENNbVNwaHRLbC9HK0FzSm5vWHQraitnb0pxTXJ5V3ZBekN2QTV5TjUxaGloUFhlMFpqOGpnSEdROHdoeXRveVE5NkJIUU1qcTRGOG5xdVdwbFZXY3lyY0xZVldsOVA5V3VmK3R3NFNqLzJWQ2J3Nk9VdlFYcFo4OVRjcFdHb20vSm50dUZFWUhTMk5CQzJ3Wk1ibkdDZ0szSHdLWVZrcGc9PTo62TMg6eHf9KpQPcwnN1eYUQ==",
+            "secret": "bTVrZ09weTFxWUZOQ1pueEcvVFM1ZjVsTytWNHZwL3pLdHhrUVlYUklsMVJqNFlJTkNhc3QvUElIQjZVaXBRa1VzME9SbVNHSzRXYXF2alNEU0dOYnRqVElTRWRCVkc0d3BHSVplZFFCdEJJa1l3RkZGb2NRSGtYY3hsWUVKSFZHTWpEdURQWVIrVm1HYjV0ZkRpVmd3ZlJpMlljamFsT3k5dUFKVnpicUE3ZmFma2JpOHJyUGNObkNhV0lhS2NHcnBmemM2aWlUV0tnSkpjWjJERzdLdWdJTG0wKzlUZVJBcGk1NE5vNVVJYmw2UFJFWjJLazU1bWsyNDZRTjhRWWZvSnJ2Z1FYMUw2MmF0TnlRUjhDcmc9PTo61BtVpg9P2S3cIAOVjsrWhA=="
+        }
+    },
+    "paymongo": {
+        "hard_rate": {
+            "enabled": true,
+            "rate": 100,
+            "public_key": "ZVZEWTlBeTZ6TDgvbmhOdVdCd3BUUXJ5V3dGQXpWbjlVV3pBU1RIazB5aG9GdkMxZW96QnBvRzl4eUM1ck5Cejo6IP8YOA8bX7keznlca604ag==",
+            "secret_key": "VlE5Q2plWGxEcVJNeXJJYUlQM3h3MGRyakJicmFRM0FheUFpcXZsTS8yTEVKcmtqa213RFVHY3AzOFg4OU5Vdzo6MxaHZcTrLDxsPmqsaIweXQ=="
+        },
+        "mid_rate": {
+            "enabled": false,
+            "rate": 100,
+            "public_key": "U3lsWGl2RE4yeTQrMlpqc3lUQ2FYVmVzYmpGdTAzRlVRUW9aRVE4NWtQOG91bFZvaDNFbitoRHBydmM2WnRpbkljVndMVG9sV3hwT1lXNkUvK0p4c09zVFhDV2MzazdQQTRsdHN4OUl2eUFFQ0NsYlJjT1ZFS1JNM1BuV2V0K2QyOGpPaUQ0WnBzMkJONXZkeUxTcXE4NDZFNmc2eUFDTDc0Y3J4cmovUUdnPTo6WfYFTrc6rsO3Kci3Iix8Qw==",
+            "secret_key": "Smoxd28zcms0d2d0aitmWU1UMEFBbDBpTUhmNnZHRFJiV20xWTkwRGNnZ2R1TTdUdFdtOTEzR3lCMzIvK1hjYUNIbENqQkNXUHZURG5jM29CM25YVXN6TlZpdDZhcUFSejQrSHg5aUkwY3d3VjRUK3FVRDZOTWFwU3Q2RTZUOFM0S2VOeGlkRUhHUEdocXRrVllmd082RlhFbDkweEcxNEJCTlJQb0hEQmpzPTo6PGtD9QdV76xGRQmuoSnMiA=="
+        }
+    },
+    "user_dashboard": {
+        "mid_rate": {
+            "enable_webshop": true,
+            "enable_reset": true,
+            "enable_reset_stats": true,
+            "enable_clear_pk": true,
+            "enable_reset_master": true,
+            "enable_unstuck": true
+        }
+    },
+    "server_names": {
+        "mid_rate": "Nebula 1",
+        "hard_rate": "Server 2"
+    }
+}

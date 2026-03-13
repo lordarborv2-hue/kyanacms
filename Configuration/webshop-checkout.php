@@ -84,7 +84,22 @@ foreach ($cartItems as $ci) {
 
     for ($i = 1; $i <= 5; $i++) { $hex .= ($i <= ($ci['sockets'] ?? 0)) ? "FE" : "FF"; }
     
-    $itemsToInject[] = ['hex' => strtoupper($hex), 'w' => $db['Width'], 'h' => $db['Height']];
+    $itemsToInject[] = [
+        'hex'       => strtoupper($hex),
+        'w'         => $db['Width'],
+        'h'         => $db['Height'],
+        'name'      => $ci['name'],
+        'price'     => $itemPrice,
+        'level'     => $ci['level'],
+        'luck'      => $ci['luck'],
+        'skill'     => $ci['skill'],
+        'ancient'   => $ci['ancient'],
+        'opt380'    => $ci['opt380'] ?? 0,
+        'harmonyVal'=> $ci['harmonyVal'],
+        'excNames'  => $ci['excNames'],
+        'ancName1'  => $db['AncName1'] ?? '',
+        'ancName2'  => $db['AncName2'] ?? '',
+    ];
 }
 
 // 4. Check Credits
@@ -93,30 +108,34 @@ if (!$credRow || $credRow['credits'] < $totalPrice) { echo json_encode(['success
 
 // 5. Advanced Multi-Item Tetris Algorithm
 sqlsrv_begin_transaction($conn);
-foreach ($itemsToInject as $item) {
-    // Re-map the grid every time an item is added
-    $grid = array_fill(0, 120, false);
-    for ($i = 0; $i < 120; $i++) {
-        $itemHex = substr($currentWarehouseHex, $i * 32, 32);
-        if (strlen($itemHex) < 32 || strtoupper($itemHex) === 'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF') continue; 
-        
-        // This is your working slot-filling logic
-        $hexType = hexdec(substr($itemHex, 18, 2));
-        $type = floor($hexType / 16);
-        $id = hexdec(substr($itemHex, 0, 2)) + (($hexType & 128) ? 256 : 0);
-        
-        $w = $itemDbData["$type-$id"]['Width'] ?? 1;
-        $h = $itemDbData["$type-$id"]['Height'] ?? 1;
-        $x = $i % 8; $y = floor($i / 8);
-        for ($dy = 0; $dy < $h; $dy++) {
-            for ($dx = 0; $dx < $w; $dx++) {
-                if (($x + $dx) < 8 && ($y + $dy) < 15) { $grid[($x + $dx) + (($y + $dy) * 8)] = true; }
-            }
+
+// Initialize the grid once before the loop
+// Dynamically detect warehouse slot count from actual hex length (avoids out-of-bounds writes)
+$totalSlots = (int)(strlen($currentWarehouseHex) / 32);
+$totalRows  = (int)($totalSlots / 8);
+
+$grid = array_fill(0, $totalSlots, false);
+for ($i = 0; $i < $totalSlots; $i++) {
+    $itemHex = substr($currentWarehouseHex, $i * 32, 32);
+    if (strlen($itemHex) < 32 || strtoupper($itemHex) === 'FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF') continue; 
+    
+    $hexType = hexdec(substr($itemHex, 18, 2));
+    $type = floor($hexType / 16);
+    $id = hexdec(substr($itemHex, 0, 2)) + (($hexType & 128) ? 256 : 0);
+    
+    $w = $itemDbData["$type-$id"]['Width'] ?? 1;
+    $h = $itemDbData["$type-$id"]['Height'] ?? 1;
+    $x = $i % 8; $y = floor($i / 8);
+    for ($dy = 0; $dy < $h; $dy++) {
+        for ($dx = 0; $dx < $w; $dx++) {
+            if (($x + $dx) < 8 && ($y + $dy) < $totalRows) { $grid[($x + $dx) + (($y + $dy) * 8)] = true; }
         }
     }
+}
 
+foreach ($itemsToInject as $item) {
     $foundSlot = -1;
-    for ($y = 0; $y <= 15 - $item['h']; $y++) {
+    for ($y = 0; $y <= $totalRows - $item['h']; $y++) {
         for ($x = 0; $x <= 8 - $item['w']; $x++) {
             $canFit = true;
             for ($dy = 0; $dy < $item['h']; $dy++) {
@@ -128,8 +147,43 @@ foreach ($itemsToInject as $item) {
         }
     }
 
-    if ($foundSlot === -1) { sqlsrv_rollback($conn); echo json_encode(['success' => false, 'message' => "No space for all items!"]); exit; }
+    if ($foundSlot === -1) { 
+        sqlsrv_rollback($conn); 
+        echo json_encode(['success' => false, 'message' => "No space for all items!"]); exit; 
+    }
+
+    // CRITICAL FIX: Update the Hex AND the Grid for the next item in the cart
     $currentWarehouseHex = substr_replace($currentWarehouseHex, $item['hex'], $foundSlot * 32, 32);
+    
+    // 2. CRITICAL FIX: Update the grid so the NEXT item in the cart doesn't overlap this one
+    $startX = $foundSlot % 8; 
+    $startY = floor($foundSlot / 8);
+    for ($dy = 0; $dy < $item['h']; $dy++) {
+        for ($dx = 0; $dx < $item['w']; $dx++) {
+            $grid[($startX + $dx) + (($startY + $dy) * 8)] = true; 
+        }
+    }
+	$optList = [];
+	if ($item['level'] > 0) $optList[] = "+" . $item['level'];
+	if ($item['luck']) $optList[] = "Luck";
+	if ($item['skill']) $optList[] = "Skill";
+	
+	if ($item['ancient'] == 1 && !empty($item['ancName1'])) {
+		$optList[] = "Ancient: " . $item['ancName1'];
+	} elseif ($item['ancient'] == 2 && !empty($item['ancName2'])) {
+		$optList[] = "Ancient: " . $item['ancName2'];
+	} elseif ($item['ancient'] > 0) {
+		$optList[] = "Ancient";
+	}
+	
+	if ($item['opt380']) $optList[] = "380";
+	if ($item['harmonyVal'] > 0) $optList[] = "Harmony";
+	foreach ($item['excNames'] as $eName) { $optList[] = $eName; }
+	
+	$fullOptions = implode(', ', $optList);
+	
+	$logSql = "INSERT INTO Webshop_Logs (AccountID, ItemName, Price, ServerKey, ItemOptions) VALUES (?, ?, ?, ?, ?)";
+	sqlsrv_query($conn, $logSql, [$username, $item['name'], $item['price'], $server_key, $fullOptions]);
 }
 
 // 6. Final Save

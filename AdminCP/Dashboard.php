@@ -109,6 +109,7 @@ $page = $_GET['page'] ?? 'news';
                 <a href="?page=settings" class="<?php echo $page === 'settings' ? 'active' : ''; ?>">Settings</a>
                 <a href="?page=user_settings" class="<?php echo ($page == 'user_settings') ? 'active' : ''; ?>">User Dashboard</a>
                 <a href="?page=economy" class="<?php echo ($page == 'economy') ? 'active' : ''; ?>">Economy</a>
+				<a href="?page=logs" class="<?php echo $page === 'logs' ? 'active' : ''; ?>">Webshop Logs</a>
                 <a href="?page=donations" class="<?php echo ($page == 'donations') ? 'active' : ''; ?>">Donations</a>
                 <a href="?page=orders" class="<?php echo ($page == 'orders') ? 'active' : ''; ?>">Donation Orders</a> 
                 <a href="?page=database" class="<?php echo $page === 'database' ? 'active' : ''; ?>">Database</a>
@@ -133,6 +134,7 @@ $page = $_GET['page'] ?? 'news';
                 case 'orders': include 'dashboard-orders.php'; break;
                 case 'user_settings': include 'dashboard-user-settings.php'; break;
                 case 'economy': include 'dashboard-economy.php'; break;
+				case 'logs': include 'dashboard-logs.php'; break;
                 default: echo "<p>Welcome to the Admin Dashboard.</p>"; break;
             }
             ?>

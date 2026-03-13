@@ -893,13 +893,17 @@ function updateCartUI() {
 
     shoppingCart.forEach(item => {
         total += item.price;
+        
+        // FIX: Reconstruct the path to use the subfolder structure
+        const folderPath = `uploads/items/${item.type}/${item.index}.gif`;
+
         list.innerHTML += `
             <div class="cart-item-row" 
                  onmouseover="showItemTooltip(event, ${item.uniqueId})" 
                  onmousemove="moveTooltip(event)"
                  onmouseout="hideItemTooltip()"
                  style="display:flex; align-items:center; gap:10px; margin-bottom:8px; background:#1a1a1a; padding:8px; border-radius:4px; border:1px solid #444; cursor:help;">
-                <img src="${item.img}" style="width:32px; height:32px;" onerror="this.src='uploads/items/placeholder.gif'">
+                <img src="${folderPath}" style="width:32px; height:32px;" onerror="this.src='uploads/items/noimage.gif'">
                 <div style="flex:1;">
                     <div style="font-size:0.9em; font-weight:bold;">${item.name} +${item.level}</div>
                     <div style="font-size:0.8em; color:#f1c40f;">${item.price} Credits</div>
