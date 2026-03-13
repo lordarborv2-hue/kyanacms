@@ -239,6 +239,40 @@ function filterShopItems() {
     calculateShopPrice();
 }
 
+function updateExcLabels() {
+    const itemSelect = document.getElementById('shop-item');
+    if (!itemSelect || !itemSelect.value) return;
+
+    const [itemType] = itemSelect.value.split('-');
+    const type = parseInt(itemType);
+
+    // Determine category: Wings = type 12, Sets = type 7-11, Weapons = type 0-6
+    let mode;
+    if (type === 12) {
+        mode = 'wings';
+    } else if (type >= 6 && type <= 11) {
+        mode = 'set';
+    } else {
+        mode = 'weapon';
+    }
+
+    document.querySelectorAll('.shop-exc').forEach(cb => {
+        const label = cb.parentElement.querySelector('.exc-label');
+        if (!label) return;
+        const excNum = {1:'1', 2:'2', 4:'3', 8:'4', 16:'5', 32:'6'}[cb.value] || '';
+        const desc = cb.dataset[mode];
+        if (desc) {
+            label.textContent = `Exc ${excNum} - ${desc}`;
+            cb.parentElement.style.display = '';
+        } else {
+            // Hide exc options not applicable to this item type (e.g. Wings Exc 3 & 4)
+            label.textContent = `Exc ${excNum}`;
+            cb.parentElement.style.display = 'none';
+            cb.checked = false;
+        }
+    });
+}
+
 function applyItemFilters() {
     const itemSelect = document.getElementById('shop-item');
     if (!itemSelect || !itemSelect.value) {
@@ -268,6 +302,7 @@ function applyItemFilters() {
 
     document.getElementById('shop-group-exc').style.display = (opt.dataset.allowExc == 1) ? 'block' : 'none';
     if(opt.dataset.allowExc == 0) document.querySelectorAll('.shop-exc').forEach(cb => cb.checked = false);
+    updateExcLabels();
 
     // Toggle Advanced Container
     const showAdvanced = (opt.dataset.allow380 == 1 || opt.dataset.allowHarmony == 1 || opt.dataset.allowAncient == 1 || opt.dataset.allowSocket == 1);
@@ -839,8 +874,15 @@ function addToCart() {
     // Capture visual labels for the tooltip
     const selectedExcNames = [];
     document.querySelectorAll('.shop-exc:checked').forEach(cb => {
-        selectedExcNames.push(cb.parentElement.textContent.trim());
+        const lbl = cb.parentElement.querySelector('.exc-label');
+		selectedExcNames.push(lbl ? lbl.textContent.trim() : cb.parentElement.textContent.trim());
     });
+
+    const ancientSelect = document.getElementById('shop-ancient');
+    const ancientVal = parseInt(ancientSelect?.value || 0);
+    const ancientName = (ancientVal > 0 && ancientSelect)
+        ? ancientSelect.options[ancientSelect.selectedIndex].text
+        : '';
 
     const cartItem = {
         uniqueId: Date.now(),
@@ -856,9 +898,10 @@ function addToCart() {
         harmonyVal: parseInt(document.getElementById('shop-harmony').value),
         harmonyName: document.getElementById('shop-harmony').options[document.getElementById('shop-harmony').selectedIndex].text,
         sockets: parseInt(document.getElementById('shop-sockets').value),
-        ancient: parseInt(document.getElementById('shop-ancient')?.value || 0),
+        ancient: ancientVal,
+        ancientName: ancientName,
         price: parseInt(document.getElementById('shop-total-price').textContent),
-        img: `uploads/items/${itemType}-${itemIndex}.gif` //
+        img: `uploads/items/${itemType}-${itemIndex}.gif`
     };
 
     shoppingCart.push(cartItem);
@@ -924,13 +967,16 @@ function showItemTooltip(e, uniqueId) {
     html += `<div style="color:#f1c40f; text-align:center;">+${item.level}</div>`;
     
     if (item.skill) html += `<div style="color:#28a745;">(Skill)</div>`;
-    if (item.luck) html += `<div style="color:#28a745;">(Luck)</div>`;
+    if (item.luck)  html += `<div style="color:#28a745;">(Luck)</div>`;
     
     item.excNames.forEach(name => {
         html += `<div style="color:#3498db;">${name}</div>`;
     });
 
-    if (item.harmonyVal > 0) html += `<div style="color:#ffc107;">${item.harmony}</div>`;
+    if (item.harmonyVal > 0)  html += `<div style="color:#ffc107;">${item.harmonyName}</div>`;
+    if (item.ancient > 0)     html += `<div style="color:#28a745;">Ancient (Set ${item.ancient})</div>`;
+    if (item.sockets > 0)     html += `<div style="color:#b19cd9;">${item.sockets} Socket${item.sockets !== 1 ? 's' : ''}</div>`;
+    if (item.opt380)          html += `<div style="color:#eebb00;">380 PvP Option</div>`;
 
     tooltip.innerHTML = html;
     tooltip.style.display = 'block';
@@ -1011,6 +1057,7 @@ function onItemSelect(data) {
 
 // Ensure this runs whenever the item dropdown changes
 document.getElementById('shop-item').addEventListener('change', updateItemPreview);
+
 
 
 

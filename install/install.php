@@ -2,14 +2,16 @@
 /**
  * ============================================================
  *  Kyana CMS — Installer
- *  Drop this file in your web root and visit it in a browser.
- *  Delete it after installation is complete.
+ *  Place in: /install/install.php
+ *  Visit in browser, then DELETE this file after installation.
  * ============================================================
  */
 
-define('LOCK_FILE',    __DIR__ . '/install.lock');
-define('CONFIG_FILE',  __DIR__ . '/config.php');
-define('SETTINGS_FILE',__DIR__ . '/Configuration/settings.json');
+// Paths relative to the web root (one level up from /install/)
+define('ROOT',          dirname(__DIR__));
+define('LOCK_FILE',     ROOT . '/install.lock');
+define('CONFIG_FILE',   ROOT . '/config.php');
+define('SETTINGS_FILE', ROOT . '/Configuration/settings.json');
 
 session_start();
 error_reporting(0);
@@ -19,11 +21,11 @@ $step   = (int)($_GET['step'] ?? 1);
 $errors = [];
 
 // ── Helpers ──────────────────────────────────────────────────
-function encrypt_pass(string $password, string $key): string {
+function encrypt_value(string $plaintext, string $key): string {
     $cipher = 'aes-256-cbc';
     $iv     = openssl_random_pseudo_bytes(openssl_cipher_iv_length($cipher));
-    $enc    = openssl_encrypt($password, $cipher, $key, 0, $iv);
-    return base64_encode($enc . '::' . $iv);
+    $enc    = openssl_encrypt($plaintext, $cipher, $key, 0, $iv);
+    return base64_encode($enc . '::' . base64_encode($iv));
 }
 
 function test_mssql(string $host, string $db, string $user, string $pass): array {
@@ -39,305 +41,373 @@ function test_mssql(string $host, string $db, string $user, string $pass): array
         'LoginTimeout'           => 5,
     ]);
     if (!$conn) {
-        $errs = sqlsrv_errors();
-        return ['ok' => false, 'msg' => $errs ? $errs[0]['message'] : 'Unknown connection error', 'conn' => null];
+        $e = sqlsrv_errors();
+        return ['ok' => false, 'msg' => $e ? $e[0]['message'] : 'Unknown error', 'conn' => null];
     }
-    return ['ok' => true, 'msg' => 'Connected!', 'conn' => $conn];
+    return ['ok' => true, 'msg' => 'Connected', 'conn' => $conn];
 }
 
 function check_prereqs(): array {
-    $checks = [];
-
-    $checks[] = ['label' => 'PHP Version (7.4+)',           'ok' => version_compare(PHP_VERSION, '7.4.0', '>='), 'val' => PHP_VERSION];
-    $checks[] = ['label' => 'sqlsrv Extension',             'ok' => function_exists('sqlsrv_connect'),           'val' => function_exists('sqlsrv_connect') ? 'Loaded' : 'MISSING — install php_sqlsrv driver'];
-    $checks[] = ['label' => 'OpenSSL Extension',            'ok' => extension_loaded('openssl'),                 'val' => extension_loaded('openssl')  ? 'Loaded' : 'MISSING'];
-    $checks[] = ['label' => 'cURL Extension',               'ok' => extension_loaded('curl'),                    'val' => extension_loaded('curl')     ? 'Loaded' : 'MISSING (required for PayPal / PayMongo)'];
-    $checks[] = ['label' => 'GD / Image Extension',         'ok' => extension_loaded('gd'),                      'val' => extension_loaded('gd')       ? 'Loaded' : 'MISSING (required for guild emblems)'];
-
-    $cfg_ok = is_writable(CONFIG_FILE) || (!file_exists(CONFIG_FILE) && is_writable(__DIR__));
-    $checks[] = ['label' => 'config.php writable',          'ok' => $cfg_ok,  'val' => $cfg_ok  ? 'OK' : 'NOT writable — chmod 644 the file or 755 the folder'];
-
-    $dir_ok = is_writable(__DIR__ . '/Configuration') || (!is_dir(__DIR__ . '/Configuration') && is_writable(__DIR__));
-    $checks[] = ['label' => 'Configuration/ folder writable','ok' => $dir_ok, 'val' => $dir_ok  ? 'OK' : 'NOT writable — chmod 755'];
-
-    $upl_ok = is_writable(__DIR__ . '/uploads') || (!is_dir(__DIR__ . '/uploads') && is_writable(__DIR__));
-    $checks[] = ['label' => 'uploads/ folder writable',     'ok' => $upl_ok,  'val' => $upl_ok  ? 'OK' : 'NOT writable — chmod 755'];
-
-    return $checks;
+    $c = [];
+    $c[] = ['label' => 'PHP Version (7.4+)',             'ok' => version_compare(PHP_VERSION, '7.4.0', '>='), 'val' => PHP_VERSION];
+    $c[] = ['label' => 'sqlsrv Extension',               'ok' => function_exists('sqlsrv_connect'),           'val' => function_exists('sqlsrv_connect') ? 'Loaded' : 'MISSING — install php_sqlsrv'];
+    $c[] = ['label' => 'OpenSSL Extension',              'ok' => extension_loaded('openssl'),                 'val' => extension_loaded('openssl')  ? 'Loaded' : 'MISSING'];
+    $c[] = ['label' => 'cURL Extension',                 'ok' => extension_loaded('curl'),                    'val' => extension_loaded('curl')     ? 'Loaded' : 'MISSING'];
+    $c[] = ['label' => 'GD Extension',                   'ok' => extension_loaded('gd'),                      'val' => extension_loaded('gd')       ? 'Loaded' : 'MISSING'];
+    $cfg_ok = is_writable(CONFIG_FILE) || (!file_exists(CONFIG_FILE) && is_writable(ROOT));
+    $c[] = ['label' => 'config.php writable',            'ok' => $cfg_ok,  'val' => $cfg_ok  ? 'OK' : 'NOT writable'];
+    $dir_ok = is_dir(ROOT . '/Configuration') ? is_writable(ROOT . '/Configuration') : is_writable(ROOT);
+    $c[] = ['label' => 'Configuration/ writable',        'ok' => $dir_ok,  'val' => $dir_ok  ? 'OK' : 'NOT writable'];
+    $upl_ok = is_dir(ROOT . '/uploads') ? is_writable(ROOT . '/uploads') : is_writable(ROOT);
+    $c[] = ['label' => 'uploads/ writable',              'ok' => $upl_ok,  'val' => $upl_ok  ? 'OK' : 'NOT writable'];
+    return $c;
 }
 
-// ── POST handlers ─────────────────────────────────────────────
-
-// Step 2 → 3
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 2 && isset($_POST['next'])) {
-    header('Location: ?step=3'); exit;
+function load_settings(): array {
+    if (!file_exists(SETTINGS_FILE)) return [];
+    $d = json_decode(file_get_contents(SETTINGS_FILE), true);
+    return is_array($d) ? $d : [];
 }
 
-// Step 3: Save DB
+function load_config_values(): array {
+    $out = ['key' => '', 'admin_pass' => ''];
+    if (!file_exists(CONFIG_FILE)) return $out;
+    $src = file_get_contents(CONFIG_FILE);
+    if (preg_match("/define\('ENCRYPTION_KEY',\s*'([^']+)'\)/", $src, $m)) $out['key']        = $m[1];
+    if (preg_match("/define\('ADMIN_PASSWORD',\s*'([^']+)'\)/", $src, $m)) $out['admin_pass'] = $m[1];
+    return $out;
+}
+
+// ── Step POST handlers ────────────────────────────────────────
+
+// Step 3 — DB
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 3 && isset($_POST['save_db'])) {
     $_SESSION['db'] = [
-        'mid'  => ['host' => trim($_POST['mid_host']  ?? ''), 'name' => trim($_POST['mid_name']  ?? 'MuOnline'),    'user' => trim($_POST['mid_user']  ?? 'sa'), 'pass' => trim($_POST['mid_pass']  ?? '')],
-        'hard' => ['host' => trim($_POST['hard_host'] ?? ''), 'name' => trim($_POST['hard_name'] ?? 'MuOnlineEly'), 'user' => trim($_POST['hard_user'] ?? 'sa'), 'pass' => trim($_POST['hard_pass'] ?? '')],
+        'mid'  => ['host' => trim($_POST['mid_host'] ?? ''),  'name' => trim($_POST['mid_name'] ?? 'MuOnlineTest'), 'user' => trim($_POST['mid_user'] ?? 'sa'), 'pass' => trim($_POST['mid_pass'] ?? '')],
+        'hard' => ['host' => trim($_POST['hard_host'] ?? ''), 'name' => trim($_POST['hard_name'] ?? 'MuOnlineMid'),  'user' => trim($_POST['hard_user'] ?? 'sa'), 'pass' => trim($_POST['hard_pass'] ?? '')],
+        'skip' => isset($_POST['skip_test']),
     ];
-    $mid_ok = $hard_ok = false;
-    if (!empty($_SESSION['db']['mid']['host'])) {
-        $r = test_mssql($_SESSION['db']['mid']['host'], $_SESSION['db']['mid']['name'], $_SESSION['db']['mid']['user'], $_SESSION['db']['mid']['pass']);
-        $mid_ok = $r['ok'];
-        if (!$r['ok']) $errors[] = 'Server 1: ' . $r['msg'];
+    $db = &$_SESSION['db'];
+    if (!$db['skip']) {
+        $any_ok = false;
+        foreach (['mid', 'hard'] as $s) {
+            if (empty($db[$s]['host'])) continue;
+            $r = test_mssql($db[$s]['host'], $db[$s]['name'], $db[$s]['user'], $db[$s]['pass']);
+            if ($r['ok']) { $any_ok = true; }
+            else          { $errors[] = strtoupper($s) . ': ' . $r['msg']; }
+        }
+        if (!$any_ok && empty($errors)) $errors[] = 'At least one host must be filled.';
+        if (!$any_ok && !empty($errors)) { /* stay on step 3 */ }
     }
-    if (!empty($_SESSION['db']['hard']['host'])) {
-        $r = test_mssql($_SESSION['db']['hard']['host'], $_SESSION['db']['hard']['name'], $_SESSION['db']['hard']['user'], $_SESSION['db']['hard']['pass']);
-        $hard_ok = $r['ok'];
-        if (!$r['ok']) $errors[] = 'Server 2: ' . $r['msg'];
-    }
-    if (!$mid_ok && !$hard_ok) $errors[] = 'At least one database connection must succeed.';
     if (empty($errors)) { header('Location: ?step=4'); exit; }
 }
 
-// Step 4: Save site settings
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 4 && isset($_POST['save_names'])) {
+// Step 4 — Site settings
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 4 && isset($_POST['save_site'])) {
     $_SESSION['site'] = [
-        'title'       => trim($_POST['site_title']    ?? 'Kyana MU'),
-        'admin_pass'  => trim($_POST['admin_pass']    ?? ''),
-        'admin_pass2' => trim($_POST['admin_pass2']   ?? ''),
-        'mid_name'    => trim($_POST['mid_srv_name']  ?? 'Server 1'),
-        'mid_addr'    => trim($_POST['mid_address']   ?? '127.0.0.1'),
-        'mid_port'    => (int)($_POST['mid_port']     ?? 55901),
-        'hard_name'   => trim($_POST['hard_srv_name'] ?? 'Server 2'),
-        'hard_addr'   => trim($_POST['hard_address']  ?? '127.0.0.1'),
-        'hard_port'   => (int)($_POST['hard_port']    ?? 55901),
+        // General
+        'title'          => trim($_POST['site_title']     ?? 'Kyana MU'),
+        'show_online'    => isset($_POST['show_online']),
+        // Admin
+        'admin_pass'     => trim($_POST['admin_pass']     ?? ''),
+        'admin_pass2'    => trim($_POST['admin_pass2']    ?? ''),
+        'regen_key'      => isset($_POST['regen_key']),
+        // Server display
+        'mid_name'       => trim($_POST['mid_name']       ?? 'Server 1'),
+        'mid_address'    => trim($_POST['mid_address']    ?? '127.0.0.1'),
+        'mid_port'       => (int)($_POST['mid_port']      ?? 55902),
+        'mid_visible'    => isset($_POST['mid_visible']),
+        'hard_name'      => trim($_POST['hard_name']      ?? 'Server 2'),
+        'hard_address'   => trim($_POST['hard_address']   ?? '127.0.0.1'),
+        'hard_port'      => (int)($_POST['hard_port']     ?? 55902),
+        'hard_visible'   => isset($_POST['hard_visible']),
+        // server_names block
+        'srv_mid_label'  => trim($_POST['srv_mid_label']  ?? 'Server 1'),
+        'srv_hard_label' => trim($_POST['srv_hard_label'] ?? 'Server 2'),
+        // Downloads
+        'dl1_label'      => trim($_POST['dl1_label']      ?? 'Mediafire'),
+        'dl1_url'        => trim($_POST['dl1_url']        ?? '#'),
+        'dl2_label'      => trim($_POST['dl2_label']      ?? 'Mega'),
+        'dl2_url'        => trim($_POST['dl2_url']        ?? '#'),
+        // Session
+        'sess_admin'     => (int)($_POST['sess_admin']    ?? 30),
+        'sess_user'      => (int)($_POST['sess_user']     ?? 10),
+        // Conversion rates
+        'wcoinc'         => (int)($_POST['wcoinc']        ?? 30),
+        'wcoinp'         => (int)($_POST['wcoinp']        ?? 25),
+        'goblin'         => (int)($_POST['goblin']        ?? 5),
+        // Webshop prices
+        'price_level'    => (int)($_POST['price_level']   ?? 10),
+        'price_exc'      => (int)($_POST['price_exc']     ?? 50),
+        'price_luck_skill'=> (int)($_POST['price_luck_skill'] ?? 25),
     ];
-    if (empty($_SESSION['site']['admin_pass']))                                   $errors[] = 'Admin password cannot be empty.';
-    if ($_SESSION['site']['admin_pass'] !== $_SESSION['site']['admin_pass2'])     $errors[] = 'Admin passwords do not match.';
-    if (strlen($_SESSION['site']['admin_pass']) < 8)                              $errors[] = 'Admin password must be at least 8 characters.';
-    if (empty($_SESSION['site']['mid_name']) && empty($_SESSION['site']['hard_name'])) $errors[] = 'At least one server name is required.';
+    $s = $_SESSION['site'];
+    if (empty($s['admin_pass']))                        $errors[] = 'Admin password is required.';
+    elseif ($s['admin_pass'] !== $s['admin_pass2'])     $errors[] = 'Passwords do not match.';
+    elseif (strlen($s['admin_pass']) < 8)               $errors[] = 'Password must be at least 8 characters.';
     if (empty($errors)) { header('Location: ?step=5'); exit; }
 }
 
-// Step 5: Run install
+// Step 5 — Write files
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && $step === 5 && isset($_POST['install'])) {
     if (file_exists(LOCK_FILE)) {
         $errors[] = 'Already installed. Delete install.lock to re-run.';
     } else {
         $db      = $_SESSION['db']   ?? [];
         $site    = $_SESSION['site'] ?? [];
-        $enc_key = bin2hex(random_bytes(16));
+        $ex_cfg  = load_config_values();
+        $ex_set  = load_settings();
 
-        // 1. Write config.php
-        $cfg = "<?php\ndefine('ENCRYPTION_KEY', '$enc_key');\ndefine('ADMIN_PASSWORD', '" . addslashes($site['admin_pass']) . "');\ndefine('ENCRYPTION_CIPHER', 'aes-256-cbc');\n";
-        if (file_put_contents(CONFIG_FILE, $cfg) === false) $errors[] = 'Cannot write config.php — check permissions.';
+        // 1. Encryption key
+        $enc_key = ($site['regen_key'] || empty($ex_cfg['key']))
+            ? bin2hex(random_bytes(16))
+            : $ex_cfg['key'];
 
-        // 2. Write settings.json
+        // 2. Write config.php — preserve comment style
+        $cfg  = "<?php\n";
+        $cfg .= "// config.php\n\n";
+        $cfg .= "// --- IMPORTANT SECURITY ---\n";
+        $cfg .= "define('ENCRYPTION_KEY', '" . addslashes($enc_key) . "'); //\n\n";
+        $cfg .= "// --- ADMIN CONFIGURATION ---\n";
+        $cfg .= "define('ADMIN_PASSWORD', '" . addslashes($site['admin_pass']) . "'); //\n\n";
+        $cfg .= "// --- DO NOT EDIT BELOW ---\n";
+        $cfg .= "define('ENCRYPTION_CIPHER', 'aes-256-cbc'); //\n\n";
+        $cfg .= "// Automatically load the global encryption functions for all scripts\n";
+        $cfg .= "require_once __DIR__ . '/encryption.php'; //\n";
+        $cfg .= "?>\n";
+
+        if (file_put_contents(CONFIG_FILE, $cfg) === false)
+            $errors[] = 'Cannot write config.php — check file permissions.';
+
+        // 3. Build settings.json — merge over existing so payment keys etc. survive
         if (empty($errors)) {
-            if (!is_dir(__DIR__ . '/Configuration')) mkdir(__DIR__ . '/Configuration', 0755, true);
-            $mid_enc  = !empty($db['mid']['host'])  ? encrypt_pass($db['mid']['pass'],  $enc_key) : '';
-            $hard_enc = !empty($db['hard']['host']) ? encrypt_pass($db['hard']['pass'], $enc_key) : '';
-            $settings = [
-                'website_title'   => $site['title'],
-                'favicon_url'     => 'uploads/default-favicon.ico',
-                'security'        => ['session_timeout_minutes' => 30, 'user_session_timeout_minutes' => 10],
-                'user_dashboard'  => [
-                    'mid_rate'  => ['enable_webshop'=>true,'enable_reset'=>true,'enable_reset_stats'=>true,'enable_clear_pk'=>true,'enable_reset_master'=>true,'enable_unstuck'=>true],
-                    'hard_rate' => ['enable_webshop'=>true,'enable_reset'=>true,'enable_reset_stats'=>true,'enable_clear_pk'=>true,'enable_reset_master'=>true,'enable_unstuck'=>true],
-                ],
-                'database'        => [
-                    'mid_rate'  => ['host'=>$db['mid']['host']??'',  'name'=>$db['mid']['name']??'MuOnline',    'user'=>$db['mid']['user']??'sa',  'pass_encrypted'=>$mid_enc],
-                    'hard_rate' => ['host'=>$db['hard']['host']??'', 'name'=>$db['hard']['name']??'MuOnlineEly','user'=>$db['hard']['user']??'sa', 'pass_encrypted'=>$hard_enc],
-                ],
-                'server_names'    => ['mid_rate'=>$site['mid_name'], 'hard_rate'=>$site['hard_name']],
-                'mid_rate_server' => ['name'=>$site['mid_name'], 'address'=>$site['mid_addr'], 'port'=>$site['mid_port'], 'visible'=>true],
-                'hard_rate_server'=> ['name'=>$site['hard_name'],'address'=>$site['hard_addr'],'port'=>$site['hard_port'],'visible'=>true],
-                'download_link_1' => ['label'=>'Mediafire','url'=>'#'],
-                'download_link_2' => ['label'=>'Mega',     'url'=>'#'],
-                'wallpaper_url'   => 'uploads/default-wallpaper.jpg',
-                'conversion_rates'=> ['wcoinc'=>1,'wcoinp'=>1,'goblin'=>1],
-                'webshop'         => ['mid_rate'=>['price_level'=>10,'price_exc'=>50,'price_luck_skill'=>25,'price_380'=>100,'price_harmony'=>100,'price_socket'=>50,'price_ancient'=>100],'hard_rate'=>['price_level'=>10,'price_exc'=>50,'price_luck_skill'=>25,'price_380'=>100,'price_harmony'=>100,'price_socket'=>50,'price_ancient'=>100]],
-                'show_online_count'=> true,
-                'paypal'          => ['enabled'=>false,'mode'=>'sandbox','client_id'=>'','secret'=>'','currency'=>'USD','rate'=>100,'mid_rate'=>['enabled'=>false,'mode'=>'sandbox','client_id'=>'','secret'=>'','currency'=>'USD','rate'=>100],'hard_rate'=>['enabled'=>false,'mode'=>'sandbox','client_id'=>'','secret'=>'','currency'=>'USD','rate'=>100]],
-                'qr_ph'           => ['enabled'=>false,'ratio'=>100,'mid_rate'=>['enabled'=>false,'ratio'=>100],'hard_rate'=>['enabled'=>false,'ratio'=>100]],
-                'paymongo'        => ['mid_rate'=>['enabled'=>false,'public_key'=>'','secret_key'=>'','rate'=>100],'hard_rate'=>['enabled'=>false,'public_key'=>'','secret_key'=>'','rate'=>100]],
-                'tracked_items'   => [],
-                'economy_tracking'=> ['mid_rate'=>[],'hard_rate'=>[]],
-            ];
-            if (file_put_contents(SETTINGS_FILE, json_encode($settings, JSON_PRETTY_PRINT)) === false) $errors[] = 'Cannot write Configuration/settings.json — check permissions.';
+            if (!is_dir(ROOT . '/Configuration'))
+                mkdir(ROOT . '/Configuration', 0755, true);
+
+            // Decide encrypted passwords: re-encrypt if a new plaintext was given
+            $mid_enc  = $ex_set['database']['mid_rate']['pass_encrypted']  ?? '';
+            $hard_enc = $ex_set['database']['hard_rate']['pass_encrypted'] ?? '';
+            if (!empty($db['mid']['pass']))  $mid_enc  = encrypt_value($db['mid']['pass'],  $enc_key);
+            if (!empty($db['hard']['pass'])) $hard_enc = encrypt_value($db['hard']['pass'], $enc_key);
+
+            // Start from existing settings so we never lose payment keys, tracked_items, etc.
+            $s = $ex_set;
+
+            // --- Keys we always overwrite ---
+            $s['website_title']    = $site['title'];
+            $s['show_online_count']= $site['show_online'];
+
+            $s['security']['session_timeout_minutes']      = $site['sess_admin'];
+            $s['security']['user_session_timeout_minutes'] = $site['sess_user'];
+
+            $s['database']['mid_rate']['host']          = $db['mid']['host']  ?? ($ex_set['database']['mid_rate']['host']  ?? '');
+            $s['database']['mid_rate']['name']          = $db['mid']['name']  ?? ($ex_set['database']['mid_rate']['name']  ?? '');
+            $s['database']['mid_rate']['user']          = $db['mid']['user']  ?? ($ex_set['database']['mid_rate']['user']  ?? 'sa');
+            $s['database']['mid_rate']['pass_encrypted']= $mid_enc;
+
+            $s['database']['hard_rate']['host']          = $db['hard']['host'] ?? ($ex_set['database']['hard_rate']['host'] ?? '');
+            $s['database']['hard_rate']['name']          = $db['hard']['name'] ?? ($ex_set['database']['hard_rate']['name'] ?? '');
+            $s['database']['hard_rate']['user']          = $db['hard']['user'] ?? ($ex_set['database']['hard_rate']['user'] ?? 'sa');
+            $s['database']['hard_rate']['pass_encrypted']= $hard_enc;
+
+            $s['mid_rate_server']  = ['name' => $site['mid_name'],  'address' => $site['mid_address'],  'port' => $site['mid_port'],  'visible' => $site['mid_visible']];
+            $s['hard_rate_server'] = ['name' => $site['hard_name'], 'address' => $site['hard_address'], 'port' => $site['hard_port'], 'visible' => $site['hard_visible']];
+
+            $s['server_names'] = ['mid_rate' => $site['srv_mid_label'], 'hard_rate' => $site['srv_hard_label']];
+
+            $s['download_link_1'] = ['label' => $site['dl1_label'], 'url' => $site['dl1_url']];
+            $s['download_link_2'] = ['label' => $site['dl2_label'], 'url' => $site['dl2_url']];
+
+            $s['conversion_rates'] = ['wcoinc' => $site['wcoinc'], 'wcoinp' => $site['wcoinp'], 'goblin' => $site['goblin']];
+
+            $s['webshop'] = ['price_level' => $site['price_level'], 'price_exc' => $site['price_exc'], 'price_luck_skill' => $site['price_luck_skill']];
+
+            // --- Keys that must exist on fresh install but are never overwritten if present ---
+            $s['favicon_url']   = $s['favicon_url']   ?? 'uploads/favicon.ico';
+            $s['wallpaper_url'] = $s['wallpaper_url'] ?? 'uploads/wallpaper.jpg';
+            $s['tracked_items'] = $s['tracked_items'] ?? [];
+            $s['qr_ph']         = $s['qr_ph']         ?? ['enabled' => false, 'ratio' => 100, 'mid_rate' => ['enabled' => false, 'ratio' => 100], 'hard_rate' => ['enabled' => false, 'ratio' => 100]];
+            $s['paypal']        = $s['paypal']        ?? ['mid_rate' => ['enabled' => false, 'mode' => 'sandbox', 'currency' => 'USD', 'rate' => 100, 'client_id' => '', 'secret' => '']];
+            $s['paymongo']      = $s['paymongo']      ?? ['mid_rate' => ['enabled' => false, 'rate' => 100, 'public_key' => '', 'secret_key' => ''], 'hard_rate' => ['enabled' => false, 'rate' => 100, 'public_key' => '', 'secret_key' => '']];
+            $s['user_dashboard']= $s['user_dashboard']?? ['mid_rate' => ['enable_webshop' => true, 'enable_reset' => true, 'enable_reset_stats' => true, 'enable_clear_pk' => true, 'enable_reset_master' => true, 'enable_unstuck' => true]];
+
+            if (file_put_contents(SETTINGS_FILE, json_encode($s, JSON_PRETTY_PRINT | JSON_UNESCAPED_SLASHES)) === false)
+                $errors[] = 'Cannot write Configuration/settings.json — check permissions.';
         }
 
-        // 3. Create folders
+        // 4. Create upload folders
         if (empty($errors)) {
-            foreach (['uploads', 'uploads/proofs'] as $dir) {
-                if (!is_dir(__DIR__ . '/' . $dir)) mkdir(__DIR__ . '/' . $dir, 0755, true);
+            foreach (['uploads', 'uploads/proofs', 'uploads/qr-ph', 'uploads/items'] as $dir) {
+                $p = ROOT . '/' . $dir;
+                if (!is_dir($p)) mkdir($p, 0755, true);
             }
         }
 
-        // 4. Run SQL on each DB
-        if (empty($errors)) {
-            $sql_tables = [
-                'WebCredits' =>
-                    "IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id=OBJECT_ID(N'WebCredits') AND type='U')
-                     CREATE TABLE WebCredits (
-                         memb___id varchar(10) NOT NULL,
-                         credits int NOT NULL DEFAULT 0,
-                         CONSTRAINT PK_WebCredits PRIMARY KEY (memb___id)
-                     )",
-                'WebshopItems' =>
-                    "IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id=OBJECT_ID(N'WebshopItems') AND type='U')
-                     CREATE TABLE WebshopItems (
-                         ID int IDENTITY(1,1) PRIMARY KEY,
-                         ItemType int, ItemIndex int, ItemName varchar(100),
-                         Width int DEFAULT 1, Height int DEFAULT 1,
-                         BasePrice int DEFAULT 100, IsActive bit DEFAULT 1,
-                         AllowExc bit DEFAULT 1, AllowLevel bit DEFAULT 1,
-                         Allow380 bit DEFAULT 0, AllowHarmony bit DEFAULT 1,
-                         AllowSocket bit DEFAULT 0, MaxExc int DEFAULT 6,
-                         MaxSocket int DEFAULT 0, AllowLuck bit DEFAULT 1,
-                         AllowSkill bit DEFAULT 1, AllowAncient bit DEFAULT 0,
-                         AncName1 varchar(50), AncName2 varchar(50)
-                     )",
-                'PendingDonations' =>
-                    "IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id=OBJECT_ID(N'PendingDonations') AND type='U')
-                     CREATE TABLE PendingDonations (
-                         ID int IDENTITY(1,1) PRIMARY KEY,
-                         AccountID varchar(50) NOT NULL,
-                         CreditsToReceive int NOT NULL,
-                         ReferenceNumber varchar(100) NOT NULL,
-                         ProofImage varchar(255) NOT NULL,
-                         DateSubmitted datetime DEFAULT GETDATE(),
-                         Status tinyint DEFAULT 0
-                     )",
-            ];
+        // 5. Create SQL tables on both DB servers
+        $sql_map = [
+            'WebCredits' =>
+                "IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id=OBJECT_ID(N'WebCredits') AND type='U')
+                 CREATE TABLE WebCredits (memb___id varchar(10) NOT NULL, credits int NOT NULL DEFAULT 0,
+                 CONSTRAINT PK_WebCredits PRIMARY KEY (memb___id))",
+            'WebshopItems' =>
+                "IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id=OBJECT_ID(N'WebshopItems') AND type='U')
+                 CREATE TABLE WebshopItems (
+                     ItemType int NOT NULL, ItemIndex int NOT NULL, ItemName varchar(100) NULL,
+                     Width int DEFAULT 1, Height int DEFAULT 1, BasePrice int DEFAULT 100,
+                     IsActive bit DEFAULT 1, AllowExc bit DEFAULT 1, AllowLevel bit DEFAULT 1,
+                     Allow380 bit DEFAULT 0, AllowHarmony bit DEFAULT 1, AllowSocket bit DEFAULT 0,
+                     MaxExc int DEFAULT 6, MaxSocket int DEFAULT 0, AllowLuck bit DEFAULT 1,
+                     AllowSkill bit DEFAULT 1, AllowAncient bit DEFAULT 0,
+                     AncName1 varchar(50) NULL, AncName2 varchar(50) NULL,
+                     CONSTRAINT PK_WebshopItems PRIMARY KEY (ItemType, ItemIndex))",
+            'PendingDonations' =>
+                "IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id=OBJECT_ID(N'PendingDonations') AND type='U')
+                 CREATE TABLE PendingDonations (
+                     ID int IDENTITY(1,1) PRIMARY KEY, AccountID varchar(50) NOT NULL,
+                     CreditsToReceive int NOT NULL, ReferenceNumber varchar(100) NOT NULL,
+                     ProofImage varchar(255) NOT NULL, DateSubmitted datetime DEFAULT GETDATE(), Status tinyint DEFAULT 0)",
+            'Webshop_Logs' =>
+                "IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id=OBJECT_ID(N'Webshop_Logs') AND type='U')
+                 CREATE TABLE Webshop_Logs (
+                     ID int IDENTITY(1,1) PRIMARY KEY, AccountID varchar(50) NOT NULL,
+                     ItemName varchar(100) NULL, ItemOptions varchar(500) NULL,
+                     Price int DEFAULT 0, ServerKey varchar(20) NULL, PurchaseDate datetime DEFAULT GETDATE())",
+        ];
 
-            $db_results = [];
-            foreach (['mid','hard'] as $srv) {
+        $db_results = [];
+        if (empty($errors)) {
+            foreach (['mid', 'hard'] as $srv) {
                 if (empty($db[$srv]['host'])) continue;
                 $r = test_mssql($db[$srv]['host'], $db[$srv]['name'], $db[$srv]['user'], $db[$srv]['pass']);
-                if (!$r['ok']) { $db_results[$srv] = ['ok'=>false,'tables'=>[],'msg'=>$r['msg']]; continue; }
-                $conn = $r['conn'];
-                $tbl_results = [];
-                foreach ($sql_tables as $tbl => $sql) {
-                    $stmt = sqlsrv_query($conn, $sql);
-                    $errs = sqlsrv_errors();
-                    $tbl_results[$tbl] = ($stmt === false) ? '❌ ' . ($errs ? $errs[0]['message'] : 'error') : '✅ OK';
+                if (!$r['ok']) { $db_results[$srv] = ['ok' => false, 'tables' => [], 'msg' => $r['msg']]; continue; }
+                $tables = [];
+                foreach ($sql_map as $tbl => $sql) {
+                    $stmt = sqlsrv_query($r['conn'], $sql);
+                    $e    = sqlsrv_errors();
+                    $tables[$tbl] = ($stmt === false) ? '❌ ' . ($e ? $e[0]['message'] : 'error') : '✅ OK';
                 }
-                sqlsrv_close($conn);
-                $db_results[$srv] = ['ok'=>true,'tables'=>$tbl_results,'msg'=>''];
+                sqlsrv_close($r['conn']);
+                $db_results[$srv] = ['ok' => true, 'tables' => $tables, 'msg' => ''];
             }
-            $_SESSION['db_results'] = $db_results;
+            $_SESSION['db_results']  = $db_results;
+            $_SESSION['key_renewed'] = $site['regen_key'];
 
-            // 5. Write lock
             file_put_contents(LOCK_FILE, date('Y-m-d H:i:s'));
             header('Location: ?step=6'); exit;
         }
     }
 }
 
-// ── Gate: already installed ───────────────────────────────────
+// Gate: already locked
 if (file_exists(LOCK_FILE) && $step !== 6) $step = 99;
 
-$prereqs    = check_prereqs();
+// Pre-load existing data for form pre-fill
+$ex_set = load_settings();
+$ex_cfg = load_config_values();
+$is_reinstall = !empty($ex_set);
+$prereqs = check_prereqs();
 $prereqs_ok = !in_array(false, array_column($prereqs, 'ok'), true);
 ?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Kyana CMS — Installer</title>
 <style>
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
 :root{
-  --bg:#0f0f13;--surface:#18181f;--border:#2a2a35;
-  --accent:#7dce82;--accent2:#4fa3e0;
-  --danger:#e05c5c;--warn:#e0b84f;
-  --text:#e8e8f0;--muted:#888899;--radius:10px;
+  --bg:#0d0d12;--surface:#16161e;--border:#252530;
+  --accent:#7dce82;--blue:#4fa3e0;--danger:#e05c5c;--warn:#e0b84f;
+  --text:#e8e8f0;--muted:#888899;--r:10px;
 }
-body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 16px 60px;}
-.installer-header{text-align:center;margin-bottom:36px;}
-.installer-header h1{font-size:2em;font-weight:800;letter-spacing:-.5px;color:var(--accent);}
-.installer-header p{color:var(--muted);margin-top:6px;font-size:.95em;}
-/* Stepper */
-.stepper{display:flex;gap:0;margin-bottom:36px;max-width:640px;width:100%;}
-.step-item{flex:1;display:flex;flex-direction:column;align-items:center;position:relative;}
-.step-item:not(:last-child)::after{content:'';position:absolute;top:18px;left:55%;width:90%;height:2px;background:var(--border);z-index:0;}
-.step-item.done:not(:last-child)::after{background:var(--accent);}
-.step-dot{width:36px;height:36px;border-radius:50%;background:var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.9em;position:relative;z-index:1;border:2px solid var(--border);transition:all .25s;}
-.step-item.done .step-dot{background:var(--accent);color:#000;border-color:var(--accent);}
-.step-item.active .step-dot{background:var(--surface);color:var(--accent);border-color:var(--accent);}
-.step-label{font-size:.72em;color:var(--muted);margin-top:6px;text-align:center;}
-.step-item.active .step-label{color:var(--accent);font-weight:600;}
-/* Card */
-.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--radius);padding:32px;max-width:700px;width:100%;}
-.card h2{font-size:1.25em;margin-bottom:6px;color:var(--accent);}
-.subtitle{color:var(--muted);font-size:.88em;margin-bottom:24px;line-height:1.6;}
-/* Form */
-.field{margin-bottom:18px;}
-.field label{display:block;font-size:.82em;font-weight:600;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em;}
-.field input{width:100%;padding:10px 14px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.95em;outline:none;transition:border-color .2s;}
-.field input:focus{border-color:var(--accent);}
-.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:14px;}
-@media(max-width:520px){.grid-2{grid-template-columns:1fr;}}
-/* Server block */
-.server-block{border:1px solid var(--border);border-radius:8px;padding:20px 18px 10px;margin-bottom:22px;position:relative;}
-.server-block .server-tag{position:absolute;top:-12px;left:14px;background:var(--surface);padding:2px 10px;border:1px solid var(--border);border-radius:20px;font-size:.75em;font-weight:700;color:var(--accent2);letter-spacing:.05em;text-transform:uppercase;}
-/* Buttons */
-.btn{display:inline-flex;align-items:center;gap:8px;padding:11px 26px;border:none;border-radius:6px;font-size:.95em;font-weight:700;cursor:pointer;transition:opacity .2s,transform .1s;text-decoration:none;}
-.btn:hover{opacity:.85;}
-.btn:active{transform:scale(.98);}
-.btn-primary{background:var(--accent);color:#000;}
-.btn-secondary{background:var(--border);color:var(--text);}
-.btn-install{background:linear-gradient(135deg,#28a745,var(--accent));color:#000;font-size:1.05em;padding:14px 40px;}
-.btn-row{display:flex;gap:12px;margin-top:24px;flex-wrap:wrap;}
-.btn[disabled]{opacity:.4;cursor:not-allowed;}
-/* Alerts */
-.alert{border-radius:6px;padding:12px 16px;margin-bottom:16px;font-size:.9em;line-height:1.5;}
-.alert-danger {background:rgba(224,92,92,.15); border:1px solid var(--danger);color:#f08080;}
-.alert-success{background:rgba(125,206,130,.12);border:1px solid var(--accent);color:var(--accent);}
-.alert-warn   {background:rgba(224,184,79,.12); border:1px solid var(--warn);  color:var(--warn);}
+body{font-family:'Segoe UI',system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;display:flex;flex-direction:column;align-items:center;padding:40px 16px 80px;}
+h1{font-size:1.9em;font-weight:800;color:var(--accent);letter-spacing:-.5px;}
+.sub{color:var(--muted);margin-top:5px;font-size:.9em;}
+header{text-align:center;margin-bottom:34px;}
+/* stepper */
+.stepper{display:flex;max-width:640px;width:100%;margin-bottom:30px;}
+.si{flex:1;display:flex;flex-direction:column;align-items:center;position:relative;}
+.si:not(:last-child)::after{content:'';position:absolute;top:17px;left:55%;width:90%;height:2px;background:var(--border);z-index:0;}
+.si.done:not(:last-child)::after{background:var(--accent);}
+.dot{width:34px;height:34px;border-radius:50%;background:var(--border);color:var(--muted);display:flex;align-items:center;justify-content:center;font-weight:700;font-size:.85em;z-index:1;position:relative;border:2px solid var(--border);}
+.si.done .dot{background:var(--accent);color:#000;border-color:var(--accent);}
+.si.active .dot{background:var(--surface);color:var(--accent);border-color:var(--accent);}
+.slabel{font-size:.7em;color:var(--muted);margin-top:5px;text-align:center;}
+.si.active .slabel{color:var(--accent);font-weight:600;}
+/* card */
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:30px;max-width:760px;width:100%;}
+.card h2{font-size:1.2em;color:var(--accent);margin-bottom:5px;}
+.csub{color:var(--muted);font-size:.86em;margin-bottom:22px;line-height:1.6;}
+/* fields */
+.f{margin-bottom:14px;}
+.f label{display:block;font-size:.78em;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px;}
+.f input,.f select{width:100%;padding:9px 13px;background:var(--bg);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:.93em;outline:none;transition:border-color .2s;}
+.f input:focus,.f select:focus{border-color:var(--accent);}
+.f small{color:var(--muted);font-size:.77em;margin-top:3px;display:block;}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:13px;}
+.g3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:13px;}
+@media(max-width:540px){.g2,.g3{grid-template-columns:1fr;}}
+/* server block */
+.sblock{border:1px solid var(--border);border-radius:8px;padding:18px 16px 10px;margin-bottom:18px;position:relative;}
+.stag{position:absolute;top:-11px;left:13px;background:var(--surface);padding:1px 10px;border:1px solid var(--border);border-radius:20px;font-size:.72em;font-weight:700;color:var(--blue);letter-spacing:.05em;text-transform:uppercase;}
+/* buttons */
+.btn{display:inline-flex;align-items:center;gap:7px;padding:10px 24px;border:none;border-radius:6px;font-size:.93em;font-weight:700;cursor:pointer;text-decoration:none;transition:opacity .2s;}
+.btn:hover{opacity:.82;}
+.btn-p{background:var(--accent);color:#000;}
+.btn-s{background:var(--border);color:var(--text);}
+.btn-install{background:linear-gradient(135deg,#28a745,var(--accent));color:#000;font-size:1em;padding:13px 38px;}
+.btn[disabled]{opacity:.35;cursor:not-allowed;}
+.btn-row{display:flex;gap:10px;margin-top:22px;flex-wrap:wrap;}
+/* alerts */
+.alert{border-radius:6px;padding:11px 15px;margin-bottom:14px;font-size:.88em;line-height:1.5;}
 .alert ul{margin-left:16px;margin-top:4px;}
-/* Prereq table */
-.prereq-table{width:100%;border-collapse:collapse;font-size:.88em;}
-.prereq-table td{padding:9px 12px;border-bottom:1px solid var(--border);}
-.prereq-table tr:last-child td{border-bottom:none;}
-.prereq-table .label{color:var(--text);font-weight:500;}
-.prereq-table .val{color:var(--muted);}
-.badge{display:inline-block;padding:2px 10px;border-radius:20px;font-size:.78em;font-weight:700;}
-.badge-ok  {background:rgba(125,206,130,.2);color:var(--accent);}
-.badge-fail{background:rgba(224,92,92,.2);  color:var(--danger);}
-/* SQL results */
-.sql-result{border:1px solid var(--border);border-radius:8px;margin-bottom:16px;overflow:hidden;}
-.sql-result-header{background:rgba(255,255,255,.04);padding:10px 16px;font-weight:700;font-size:.9em;}
-.sql-result-body{padding:0 16px;}
-.sql-row{display:flex;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border);font-size:.88em;}
-.sql-row:last-child{border-bottom:none;}
-/* Done */
-.done-icon{font-size:4em;text-align:center;margin-bottom:16px;}
-.done-steps{list-style:none;padding:0;margin:20px 0;}
-.done-steps li{padding:9px 0;border-bottom:1px solid var(--border);font-size:.9em;display:flex;align-items:center;gap:10px;}
-.done-steps li:last-child{border-bottom:none;}
-/* Locked */
-.locked{text-align:center;padding:40px 0;}
-.locked .lock-icon{font-size:3.5em;margin-bottom:16px;}
-hr.divider{border:none;border-top:1px solid var(--border);margin:22px 0;}
-code{background:rgba(255,255,255,.07);padding:2px 6px;border-radius:4px;font-size:.88em;}
+.ad{background:rgba(224,92,92,.13);border:1px solid var(--danger);color:#f08080;}
+.as{background:rgba(125,206,130,.1);border:1px solid var(--accent);color:var(--accent);}
+.aw{background:rgba(224,184,79,.1);border:1px solid var(--warn);color:var(--warn);}
+.ai{background:rgba(79,163,224,.1);border:1px solid var(--blue);color:var(--blue);}
+/* prereq table */
+.ptable{width:100%;border-collapse:collapse;font-size:.87em;}
+.ptable td{padding:9px 11px;border-bottom:1px solid var(--border);}
+.ptable tr:last-child td{border-bottom:none;}
+.badge{display:inline-block;padding:1px 9px;border-radius:20px;font-size:.76em;font-weight:700;}
+.bok{background:rgba(125,206,130,.18);color:var(--accent);}
+.bfail{background:rgba(224,92,92,.18);color:var(--danger);}
+/* sql results */
+.sr{border:1px solid var(--border);border-radius:8px;margin-bottom:14px;overflow:hidden;}
+.sr-head{background:rgba(255,255,255,.04);padding:9px 15px;font-weight:700;font-size:.88em;}
+.sr-body{padding:0 15px;}
+.sr-row{display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid var(--border);font-size:.86em;}
+.sr-row:last-child{border-bottom:none;}
+/* misc */
+hr.div{border:none;border-top:1px solid var(--border);margin:20px 0;}
+code{background:rgba(255,255,255,.07);padding:1px 5px;border-radius:4px;font-size:.87em;}
+.toggle{display:flex;align-items:center;gap:9px;font-size:.9em;margin-bottom:11px;cursor:pointer;}
+.toggle input{width:15px;height:15px;accent-color:var(--accent);}
+.saved{display:inline-block;background:rgba(79,163,224,.15);border:1px solid var(--blue);color:var(--blue);padding:1px 7px;border-radius:4px;font-size:.72em;font-weight:700;margin-left:5px;}
+.summary-table{width:100%;border-collapse:collapse;font-size:.87em;margin-bottom:18px;}
+.summary-table td{padding:8px 11px;border-bottom:1px solid var(--border);vertical-align:top;}
+.summary-table td:first-child{color:var(--muted);width:190px;white-space:nowrap;}
+.summary-table tr:last-child td{border-bottom:none;}
+.done-list{list-style:none;padding:0;margin:18px 0;}
+.done-list li{padding:9px 0;border-bottom:1px solid var(--border);font-size:.89em;display:flex;gap:9px;}
+.done-list li:last-child{border-bottom:none;}
 </style>
 </head>
 <body>
 
-<div class="installer-header">
+<header>
   <h1>⚔ Kyana CMS Installer</h1>
-  <p>Configure your server step by step.</p>
-</div>
+  <p class="sub"><?= $is_reinstall ? '🔄 Re-configuration mode — existing settings detected' : 'Fresh installation' ?></p>
+</header>
 
 <?php if ($step < 7 && $step !== 99): ?>
 <div class="stepper">
-<?php
-$step_labels = ['Welcome','Prerequisites','Database','Settings','Install','Done'];
-foreach ($step_labels as $i => $label):
-    $n   = $i + 1;
-    $cls = ($n < $step) ? 'done' : (($n === $step) ? 'active' : '');
-?>
-  <div class="step-item <?= $cls ?>">
-    <div class="step-dot"><?= ($n < $step) ? '✓' : $n ?></div>
-    <div class="step-label"><?= $label ?></div>
+<?php foreach (['Welcome','Prerequisites','Database','Settings','Install','Done'] as $i => $label):
+  $n = $i + 1; $cls = ($n < $step) ? 'done' : ($n === $step ? 'active' : ''); ?>
+  <div class="si <?= $cls ?>">
+    <div class="dot"><?= $n < $step ? '✓' : $n ?></div>
+    <div class="slabel"><?= $label ?></div>
   </div>
 <?php endforeach; ?>
 </div>
@@ -345,251 +415,429 @@ foreach ($step_labels as $i => $label):
 
 <div class="card">
 
-<?php // ═══════════════ STEP 99 — Locked ═══════════════
+<?php /* ═══ 99 — Locked ═══════════════════════════════════════════ */
 if ($step === 99): ?>
-  <div class="locked">
-    <div class="lock-icon">🔒</div>
-    <h2 style="color:var(--warn);margin-bottom:10px;">Already Installed</h2>
-    <p style="color:var(--muted);line-height:1.7;">
-      <code>install.lock</code> exists — Kyana CMS has already been configured.<br><br>
-      To re-run this installer, delete <strong>install.lock</strong> from your web root first.
+  <div style="text-align:center;padding:30px 0;">
+    <div style="font-size:3em;margin-bottom:14px;">🔒</div>
+    <h2 style="color:var(--warn);">Already Installed</h2>
+    <p style="color:var(--muted);margin-top:10px;line-height:1.7;">
+      <code>install.lock</code> exists. Delete it from the web root to re-run.<br>
+      <strong>Never leave the installer accessible on a production server.</strong>
     </p>
-    <div class="btn-row" style="justify-content:center;margin-top:28px;">
-      <a href="index.html" class="btn btn-primary">Go to Website →</a>
-      <a href="AdminCP/dashboard.php" class="btn btn-secondary">Admin Panel</a>
+    <div class="btn-row" style="justify-content:center;margin-top:24px;">
+      <a href="../index.html" class="btn btn-p">🌐 Website</a>
+      <a href="../AdminCP/dashboard.php" class="btn btn-s">🔧 Admin Panel</a>
     </div>
   </div>
 
-<?php // ═══════════════ STEP 1 — Welcome ═══════════════
+<?php /* ═══ STEP 1 — Welcome ════════════════════════════════════════ */
 elseif ($step === 1): ?>
-  <h2>Welcome to the Kyana CMS Installer</h2>
-  <p class="subtitle">
-    This wizard will write your <strong>config.php</strong> and <strong>settings.json</strong>,
-    then create the required SQL tables in your MU Online database(s).<br><br>
-    Have your <strong>MS SQL Server</strong> credentials ready before continuing.
+  <h2>Welcome</h2>
+  <p class="csub">This wizard configures <code>config.php</code> and <code>Configuration/settings.json</code>, then creates the required SQL tables.</p>
+
+  <?php if ($is_reinstall): ?>
+  <div class="alert ai">ℹ️ Existing <code>settings.json</code> found. Fields will be pre-filled. Payment keys, tracked items, and media URLs will be <strong>preserved</strong>.</div>
+  <?php endif; ?>
+  <div class="alert aw">⚠️ <strong>Delete <code>install/install.php</code></strong> immediately after installation.</div>
+
+  <p style="font-size:.87em;color:var(--muted);line-height:2;">
+    What this installer does:<br>
+    ✦ Checks PHP extensions &amp; folder permissions<br>
+    ✦ Tests your MS SQL connection(s)<br>
+    ✦ Writes Admin CP password &amp; AES-256 encryption key to <code>config.php</code><br>
+    ✦ Writes DB credentials, server config, download links, conversion rates, webshop prices, and session timeouts to <code>settings.json</code><br>
+    ✦ Preserves: PayPal / PayMongo / QR keys, tracked items, favicon, wallpaper<br>
+    ✦ Creates SQL tables: <code>WebCredits</code>, <code>WebshopItems</code>, <code>PendingDonations</code>, <code>Webshop_Logs</code>
   </p>
 
-  <div class="alert alert-warn">
-    ⚠️ <strong>Security reminder:</strong> Delete <code>install.php</code> from your server immediately after installation.
-  </div>
+  <div class="btn-row"><a href="?step=2" class="btn btn-p">Get Started →</a></div>
 
-  <p style="margin-top:14px; font-size:.88em; color:var(--muted); line-height:1.8;">
-    This installer will:<br>
-    ✦ Check PHP extensions &amp; folder permissions<br>
-    ✦ Test your MS SQL database connection(s)<br>
-    ✦ Set your Admin CP password &amp; server display names<br>
-    ✦ Auto-create <code>WebCredits</code>, <code>WebshopItems</code>, <code>PendingDonations</code> tables<br>
-    ✦ Generate a fresh AES-256 encryption key
-  </p>
-
-  <div class="btn-row">
-    <a href="?step=2" class="btn btn-primary">Get Started →</a>
-  </div>
-
-<?php // ═══════════════ STEP 2 — Prerequisites ═══════════════
+<?php /* ═══ STEP 2 — Prerequisites ═════════════════════════════════ */
 elseif ($step === 2): ?>
-  <h2>Prerequisites Check</h2>
-  <p class="subtitle">Verifying your server environment before installation.</p>
+  <h2>Prerequisites</h2>
+  <p class="csub">Verifying your server environment.</p>
 
   <?php if (!$prereqs_ok): ?>
-  <div class="alert alert-danger">❌ One or more requirements are not met. Fix them before continuing.</div>
+  <div class="alert ad">❌ One or more checks failed. Fix them before continuing.</div>
   <?php else: ?>
-  <div class="alert alert-success">✅ All checks passed — ready to proceed!</div>
+  <div class="alert as">✅ All checks passed!</div>
   <?php endif; ?>
 
-  <table class="prereq-table">
-    <tbody>
+  <table class="ptable">
     <?php foreach ($prereqs as $c): ?>
     <tr>
-      <td class="label"><?= htmlspecialchars($c['label']) ?></td>
-      <td class="val"><?= htmlspecialchars($c['val']) ?></td>
-      <td style="width:80px;text-align:right;"><span class="badge <?= $c['ok'] ? 'badge-ok' : 'badge-fail' ?>"><?= $c['ok'] ? 'PASS' : 'FAIL' ?></span></td>
+      <td><?= htmlspecialchars($c['label']) ?></td>
+      <td style="color:var(--muted);font-size:.84em;"><?= htmlspecialchars($c['val']) ?></td>
+      <td style="width:70px;text-align:right;"><span class="badge <?= $c['ok'] ? 'bok' : 'bfail' ?>"><?= $c['ok'] ? 'PASS' : 'FAIL' ?></span></td>
     </tr>
     <?php endforeach; ?>
-    </tbody>
   </table>
 
-  <form method="POST" action="?step=2">
-    <div class="btn-row">
-      <a href="?step=1" class="btn btn-secondary">← Back</a>
-      <button type="submit" name="next" class="btn btn-primary" <?= !$prereqs_ok ? 'disabled' : '' ?>>Continue →</button>
-    </div>
-  </form>
+  <div class="btn-row">
+    <a href="?step=1" class="btn btn-s">← Back</a>
+    <a href="?step=3" class="btn btn-p <?= !$prereqs_ok ? 'disabled' : '' ?>" <?= !$prereqs_ok ? 'onclick="return false"' : '' ?>>Continue →</a>
+  </div>
 
-<?php // ═══════════════ STEP 3 — Database ═══════════════
+<?php /* ═══ STEP 3 — Database ══════════════════════════════════════ */
 elseif ($step === 3):
-  $d    = $_SESSION['db'] ?? [];
-  $mid  = $d['mid']  ?? [];
-  $hard = $d['hard'] ?? [];
+  $d       = $_SESSION['db'] ?? [];
+  $ex_mid  = $ex_set['database']['mid_rate']  ?? [];
+  $ex_hard = $ex_set['database']['hard_rate'] ?? [];
 ?>
   <h2>Database Configuration</h2>
-  <p class="subtitle">
-    Enter your MS SQL Server details. At least one server must connect successfully.
-    Leave the <em>Host</em> blank to skip Server 2.
-  </p>
+  <p class="csub">MS SQL Server credentials for both game databases. Leave password blank to keep the existing encrypted value.</p>
 
   <?php if (!empty($errors)): ?>
-  <div class="alert alert-danger"><ul><?php foreach($errors as $e) echo "<li>".htmlspecialchars($e)."</li>"; ?></ul></div>
+  <div class="alert ad"><ul><?php foreach($errors as $e) echo '<li>'.htmlspecialchars($e).'</li>'; ?></ul></div>
+  <?php endif; ?>
+
+  <?php if ($is_reinstall): ?>
+  <div class="alert ai">ℹ️ Pre-filled from your existing settings. <strong>Leave passwords blank</strong> to keep current encrypted values.</div>
   <?php endif; ?>
 
   <form method="POST" action="?step=3">
-
-    <div class="server-block">
-      <div class="server-tag">Server 1 — Mid Rate</div>
-      <div class="grid-2">
-        <div class="field"><label>Host / IP</label><input type="text" name="mid_host" value="<?= htmlspecialchars($mid['host']??'') ?>" placeholder="127.0.0.1"></div>
-        <div class="field"><label>Database Name</label><input type="text" name="mid_name" value="<?= htmlspecialchars($mid['name']??'MuOnline') ?>" placeholder="MuOnline"></div>
-        <div class="field"><label>SQL Username</label><input type="text" name="mid_user" value="<?= htmlspecialchars($mid['user']??'sa') ?>" placeholder="sa"></div>
-        <div class="field"><label>SQL Password</label><input type="password" name="mid_pass" value="<?= htmlspecialchars($mid['pass']??'') ?>" placeholder="••••••••"></div>
+    <div class="sblock">
+      <div class="stag">Server 1 — Mid Rate</div>
+      <div class="g2">
+        <div class="f">
+          <label>Host / IP <?php if(!empty($ex_mid['host'])) echo '<span class="saved">saved</span>'; ?></label>
+          <input type="text" name="mid_host" value="<?= htmlspecialchars($d['mid']['host'] ?? $ex_mid['host'] ?? '') ?>" placeholder="e.g. 139.99.24.220">
+        </div>
+        <div class="f">
+          <label>Database Name <?php if(!empty($ex_mid['name'])) echo '<span class="saved">saved</span>'; ?></label>
+          <input type="text" name="mid_name" value="<?= htmlspecialchars($d['mid']['name'] ?? $ex_mid['name'] ?? 'MuOnlineTest') ?>">
+        </div>
+        <div class="f">
+          <label>SQL Username</label>
+          <input type="text" name="mid_user" value="<?= htmlspecialchars($d['mid']['user'] ?? $ex_mid['user'] ?? 'sa') ?>">
+        </div>
+        <div class="f">
+          <label>SQL Password <?php if(!empty($ex_mid['pass_encrypted'])) echo '<span class="saved">encrypted stored</span>'; ?></label>
+          <input type="password" name="mid_pass" placeholder="<?= !empty($ex_mid['pass_encrypted']) ? 'Blank = keep existing' : 'Enter password' ?>">
+        </div>
       </div>
     </div>
 
-    <div class="server-block">
-      <div class="server-tag">Server 2 — Hard Rate (optional)</div>
-      <div class="grid-2">
-        <div class="field"><label>Host / IP</label><input type="text" name="hard_host" value="<?= htmlspecialchars($hard['host']??'') ?>" placeholder="Leave blank to skip"></div>
-        <div class="field"><label>Database Name</label><input type="text" name="hard_name" value="<?= htmlspecialchars($hard['name']??'MuOnlineEly') ?>" placeholder="MuOnlineEly"></div>
-        <div class="field"><label>SQL Username</label><input type="text" name="hard_user" value="<?= htmlspecialchars($hard['user']??'sa') ?>" placeholder="sa"></div>
-        <div class="field"><label>SQL Password</label><input type="password" name="hard_pass" value="<?= htmlspecialchars($hard['pass']??'') ?>" placeholder="••••••••"></div>
+    <div class="sblock">
+      <div class="stag">Server 2 — Hard Rate (optional)</div>
+      <div class="g2">
+        <div class="f">
+          <label>Host / IP <?php if(!empty($ex_hard['host'])) echo '<span class="saved">saved</span>'; ?></label>
+          <input type="text" name="hard_host" value="<?= htmlspecialchars($d['hard']['host'] ?? $ex_hard['host'] ?? '') ?>" placeholder="Leave blank to skip">
+        </div>
+        <div class="f">
+          <label>Database Name <?php if(!empty($ex_hard['name'])) echo '<span class="saved">saved</span>'; ?></label>
+          <input type="text" name="hard_name" value="<?= htmlspecialchars($d['hard']['name'] ?? $ex_hard['name'] ?? 'MuOnlineMid') ?>">
+        </div>
+        <div class="f">
+          <label>SQL Username</label>
+          <input type="text" name="hard_user" value="<?= htmlspecialchars($d['hard']['user'] ?? $ex_hard['user'] ?? 'sa') ?>">
+        </div>
+        <div class="f">
+          <label>SQL Password <?php if(!empty($ex_hard['pass_encrypted'])) echo '<span class="saved">encrypted stored</span>'; ?></label>
+          <input type="password" name="hard_pass" placeholder="<?= !empty($ex_hard['pass_encrypted']) ? 'Blank = keep existing' : 'Enter password' ?>">
+        </div>
       </div>
     </div>
+
+    <label class="toggle">
+      <input type="checkbox" name="skip_test"> Skip connection test (use if web server can't reach the game server directly)
+    </label>
 
     <div class="btn-row">
-      <a href="?step=2" class="btn btn-secondary">← Back</a>
-      <button type="submit" name="save_db" class="btn btn-primary">Test &amp; Continue →</button>
+      <a href="?step=2" class="btn btn-s">← Back</a>
+      <button type="submit" name="save_db" class="btn btn-p">Test &amp; Continue →</button>
     </div>
   </form>
 
-<?php // ═══════════════ STEP 4 — Settings ═══════════════
+<?php /* ═══ STEP 4 — Settings ═════════════════════════════════════ */
 elseif ($step === 4):
-  $s = $_SESSION['site'] ?? [];
+  $sv   = $_SESSION['site'] ?? [];
+  $exms = $ex_set['mid_rate_server']  ?? [];
+  $exhs = $ex_set['hard_rate_server'] ?? [];
+  $exsn = $ex_set['server_names']     ?? [];
+  $exsc = $ex_set['security']         ?? [];
+  $exd1 = $ex_set['download_link_1']  ?? [];
+  $exd2 = $ex_set['download_link_2']  ?? [];
+  $excr = $ex_set['conversion_rates'] ?? [];
+  $exws = $ex_set['webshop']          ?? [];
 ?>
-  <h2>Site Settings &amp; Admin Password</h2>
-  <p class="subtitle">Name your website, set a secure Admin CP password, and configure your game server info.</p>
+  <h2>Site Settings</h2>
+  <p class="csub">All settings that go into <code>settings.json</code> and <code>config.php</code>.</p>
 
   <?php if (!empty($errors)): ?>
-  <div class="alert alert-danger"><ul><?php foreach($errors as $e) echo "<li>".htmlspecialchars($e)."</li>"; ?></ul></div>
+  <div class="alert ad"><ul><?php foreach($errors as $e) echo '<li>'.htmlspecialchars($e).'</li>'; ?></ul></div>
   <?php endif; ?>
 
   <form method="POST" action="?step=4">
 
-    <div class="field">
+    <!-- ── General ── -->
+    <p style="font-size:.76em;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:12px;">🌐 General</p>
+    <div class="f">
       <label>Website Title</label>
-      <input type="text" name="site_title" value="<?= htmlspecialchars($s['title']??'Kyana MU') ?>" placeholder="e.g. KiraMU">
+      <input type="text" name="site_title" value="<?= htmlspecialchars($sv['title'] ?? $ex_set['website_title'] ?? 'Kyana MU') ?>">
     </div>
+    <label class="toggle">
+      <input type="checkbox" name="show_online" <?= ($sv['show_online'] ?? ($ex_set['show_online_count'] ?? true)) ? 'checked' : '' ?>>
+      Show online player count on homepage
+    </label>
 
-    <hr class="divider">
-    <p style="font-size:.8em;color:var(--muted);margin-bottom:14px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">🔐 Admin CP Password</p>
-    <div class="grid-2">
-      <div class="field"><label>New Password (min 8 chars)</label><input type="password" name="admin_pass" placeholder="••••••••" autocomplete="new-password"></div>
-      <div class="field"><label>Confirm Password</label><input type="password" name="admin_pass2" placeholder="••••••••" autocomplete="new-password"></div>
+    <hr class="div">
+
+    <!-- ── Admin password ── -->
+    <p style="font-size:.76em;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:12px;">🔐 Admin CP Password (written to config.php)</p>
+    <?php if (!empty($ex_cfg['admin_pass'])): ?>
+    <div class="alert ai" style="margin-bottom:12px;">Current password is set. Enter a new one to change it.</div>
+    <?php endif; ?>
+    <div class="g2">
+      <div class="f">
+        <label>New Password <span style="font-size:.8em;color:var(--muted);">(min 8 chars)</span></label>
+        <input type="password" name="admin_pass" autocomplete="new-password">
+      </div>
+      <div class="f">
+        <label>Confirm Password</label>
+        <input type="password" name="admin_pass2" autocomplete="new-password">
+      </div>
     </div>
+    <label class="toggle" style="background:rgba(224,92,92,.08);padding:10px;border-radius:6px;border:1px solid rgba(224,92,92,.25);">
+      <input type="checkbox" name="regen_key" style="accent-color:var(--danger);">
+      <span style="color:var(--danger);">⚠️ Generate a NEW encryption key — invalidates all stored API keys &amp; DB passwords</span>
+    </label>
 
-    <hr class="divider">
-    <p style="font-size:.8em;color:var(--muted);margin-bottom:14px;font-weight:700;text-transform:uppercase;letter-spacing:.05em;">🖥 Server Display Info</p>
+    <hr class="div">
 
-    <div class="server-block">
-      <div class="server-tag">Server 1 — Mid Rate</div>
-      <div class="grid-2">
-        <div class="field"><label>Display Name</label><input type="text" name="mid_srv_name" value="<?= htmlspecialchars($s['mid_name']??'Server 1') ?>" placeholder="Server 1"></div>
-        <div class="field"><label>Game Port</label><input type="number" name="mid_port" value="<?= htmlspecialchars($s['mid_port']??55901) ?>"></div>
-        <div class="field" style="grid-column:span 2"><label>Game Server IP / Address</label><input type="text" name="mid_address" value="<?= htmlspecialchars($s['mid_addr']??'127.0.0.1') ?>"></div>
+    <!-- ── Servers ── -->
+    <p style="font-size:.76em;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:12px;">🖥 Server Configuration</p>
+
+    <div class="sblock">
+      <div class="stag">Server 1 — Mid Rate</div>
+      <label class="toggle">
+        <input type="checkbox" name="mid_visible" <?= ($sv['mid_visible'] ?? ($exms['visible'] ?? true)) ? 'checked' : '' ?>>
+        Visible on homepage
+      </label>
+      <div class="g3">
+        <div class="f">
+          <label>Display Name</label>
+          <input type="text" name="mid_name" value="<?= htmlspecialchars($sv['mid_name'] ?? $exms['name'] ?? 'Server 1') ?>">
+          <small>Used in <code>mid_rate_server.name</code></small>
+        </div>
+        <div class="f">
+          <label>Game Server IP</label>
+          <input type="text" name="mid_address" value="<?= htmlspecialchars($sv['mid_address'] ?? $exms['address'] ?? '127.0.0.1') ?>">
+        </div>
+        <div class="f">
+          <label>Game Port</label>
+          <input type="number" name="mid_port" value="<?= (int)($sv['mid_port'] ?? $exms['port'] ?? 55902) ?>">
+        </div>
+      </div>
+      <div class="f">
+        <label>server_names label <span style="font-size:.8em;color:var(--muted);">(dropdown label in user dashboard)</span></label>
+        <input type="text" name="srv_mid_label" value="<?= htmlspecialchars($sv['srv_mid_label'] ?? $exsn['mid_rate'] ?? 'Nebula 1') ?>">
+        <small>Written to <code>server_names.mid_rate</code></small>
       </div>
     </div>
 
-    <div class="server-block">
-      <div class="server-tag">Server 2 — Hard Rate</div>
-      <div class="grid-2">
-        <div class="field"><label>Display Name</label><input type="text" name="hard_srv_name" value="<?= htmlspecialchars($s['hard_name']??'Server 2') ?>" placeholder="Server 2"></div>
-        <div class="field"><label>Game Port</label><input type="number" name="hard_port" value="<?= htmlspecialchars($s['hard_port']??55901) ?>"></div>
-        <div class="field" style="grid-column:span 2"><label>Game Server IP / Address</label><input type="text" name="hard_address" value="<?= htmlspecialchars($s['hard_addr']??'127.0.0.1') ?>"></div>
+    <div class="sblock">
+      <div class="stag">Server 2 — Hard Rate</div>
+      <label class="toggle">
+        <input type="checkbox" name="hard_visible" <?= ($sv['hard_visible'] ?? ($exhs['visible'] ?? false)) ? 'checked' : '' ?>>
+        Visible on homepage
+      </label>
+      <div class="g3">
+        <div class="f">
+          <label>Display Name</label>
+          <input type="text" name="hard_name" value="<?= htmlspecialchars($sv['hard_name'] ?? $exhs['name'] ?? 'Server 2') ?>">
+        </div>
+        <div class="f">
+          <label>Game Server IP</label>
+          <input type="text" name="hard_address" value="<?= htmlspecialchars($sv['hard_address'] ?? $exhs['address'] ?? '127.0.0.1') ?>">
+        </div>
+        <div class="f">
+          <label>Game Port</label>
+          <input type="number" name="hard_port" value="<?= (int)($sv['hard_port'] ?? $exhs['port'] ?? 55902) ?>">
+        </div>
+      </div>
+      <div class="f">
+        <label>server_names label</label>
+        <input type="text" name="srv_hard_label" value="<?= htmlspecialchars($sv['srv_hard_label'] ?? $exsn['hard_rate'] ?? 'Server 2') ?>">
+        <small>Written to <code>server_names.hard_rate</code></small>
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <!-- ── Downloads ── -->
+    <p style="font-size:.76em;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:12px;">⬇ Download Links</p>
+    <div class="g2">
+      <div class="f">
+        <label>Button 1 Label</label>
+        <input type="text" name="dl1_label" value="<?= htmlspecialchars($sv['dl1_label'] ?? $exd1['label'] ?? 'Mediafire') ?>">
+      </div>
+      <div class="f">
+        <label>Button 1 URL</label>
+        <input type="text" name="dl1_url" value="<?= htmlspecialchars($sv['dl1_url'] ?? $exd1['url'] ?? '#') ?>">
+      </div>
+      <div class="f">
+        <label>Button 2 Label</label>
+        <input type="text" name="dl2_label" value="<?= htmlspecialchars($sv['dl2_label'] ?? $exd2['label'] ?? 'Mega') ?>">
+      </div>
+      <div class="f">
+        <label>Button 2 URL</label>
+        <input type="text" name="dl2_url" value="<?= htmlspecialchars($sv['dl2_url'] ?? $exd2['url'] ?? '#') ?>">
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <!-- ── Session timeouts ── -->
+    <p style="font-size:.76em;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:12px;">⏱ Session Timeouts</p>
+    <div class="g2">
+      <div class="f">
+        <label>Admin Panel (minutes)</label>
+        <input type="number" name="sess_admin" min="1" value="<?= (int)($sv['sess_admin'] ?? $exsc['session_timeout_minutes'] ?? 30) ?>">
+      </div>
+      <div class="f">
+        <label>User Dashboard (minutes)</label>
+        <input type="number" name="sess_user" min="1" value="<?= (int)($sv['sess_user'] ?? $exsc['user_session_timeout_minutes'] ?? 10) ?>">
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <!-- ── Conversion Rates ── -->
+    <p style="font-size:.76em;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:12px;">💱 Conversion Rates (Credits per 1 unit)</p>
+    <div class="g3">
+      <div class="f">
+        <label>WCoinC Rate</label>
+        <input type="number" name="wcoinc" min="1" value="<?= (int)($sv['wcoinc'] ?? $excr['wcoinc'] ?? 30) ?>">
+        <small><code>conversion_rates.wcoinc</code></small>
+      </div>
+      <div class="f">
+        <label>WCoinP Rate</label>
+        <input type="number" name="wcoinp" min="1" value="<?= (int)($sv['wcoinp'] ?? $excr['wcoinp'] ?? 25) ?>">
+        <small><code>conversion_rates.wcoinp</code></small>
+      </div>
+      <div class="f">
+        <label>Goblin Points Rate</label>
+        <input type="number" name="goblin" min="1" value="<?= (int)($sv['goblin'] ?? $excr['goblin'] ?? 5) ?>">
+        <small><code>conversion_rates.goblin</code></small>
+      </div>
+    </div>
+
+    <hr class="div">
+
+    <!-- ── Webshop Prices ── -->
+    <p style="font-size:.76em;color:var(--muted);text-transform:uppercase;letter-spacing:.05em;font-weight:700;margin-bottom:12px;">🛒 Webshop Base Prices (Credits)</p>
+    <div class="g3">
+      <div class="f">
+        <label>Per Level</label>
+        <input type="number" name="price_level" min="0" value="<?= (int)($sv['price_level'] ?? $exws['price_level'] ?? 10) ?>">
+        <small><code>webshop.price_level</code></small>
+      </div>
+      <div class="f">
+        <label>Per Exc Option</label>
+        <input type="number" name="price_exc" min="0" value="<?= (int)($sv['price_exc'] ?? $exws['price_exc'] ?? 50) ?>">
+        <small><code>webshop.price_exc</code></small>
+      </div>
+      <div class="f">
+        <label>Luck / Skill</label>
+        <input type="number" name="price_luck_skill" min="0" value="<?= (int)($sv['price_luck_skill'] ?? $exws['price_luck_skill'] ?? 25) ?>">
+        <small><code>webshop.price_luck_skill</code></small>
       </div>
     </div>
 
     <div class="btn-row">
-      <a href="?step=3" class="btn btn-secondary">← Back</a>
-      <button type="submit" name="save_names" class="btn btn-primary">Save &amp; Continue →</button>
+      <a href="?step=3" class="btn btn-s">← Back</a>
+      <button type="submit" name="save_site" class="btn btn-p">Save &amp; Continue →</button>
     </div>
   </form>
 
-<?php // ═══════════════ STEP 5 — Confirm & Install ═══════════════
+<?php /* ═══ STEP 5 — Confirm ══════════════════════════════════════ */
 elseif ($step === 5):
   $db   = $_SESSION['db']   ?? [];
   $site = $_SESSION['site'] ?? [];
 ?>
   <h2>Review &amp; Install</h2>
-  <p class="subtitle">Review the summary below, then click <strong>Install Now</strong>.</p>
+  <p class="csub">Check the summary, then click <strong>Install Now</strong>.</p>
 
   <?php if (!empty($errors)): ?>
-  <div class="alert alert-danger"><ul><?php foreach($errors as $e) echo "<li>".htmlspecialchars($e)."</li>"; ?></ul></div>
+  <div class="alert ad"><ul><?php foreach($errors as $e) echo '<li>'.htmlspecialchars($e).'</li>'; ?></ul></div>
   <?php endif; ?>
 
-  <table class="prereq-table" style="margin-bottom:22px;">
-    <tr><td class="label">Website Title</td>     <td class="val"><?= htmlspecialchars($site['title']??'') ?></td></tr>
-    <tr><td class="label">Admin Password</td>    <td class="val">••••••••</td></tr>
-    <tr><td class="label">Server 1 Name</td>     <td class="val"><?= htmlspecialchars($site['mid_name']??'') ?> — <?= htmlspecialchars($site['mid_addr']??'') ?>:<?= $site['mid_port']??'' ?></td></tr>
-    <tr><td class="label">Server 2 Name</td>     <td class="val"><?= htmlspecialchars($site['hard_name']??'') ?> — <?= htmlspecialchars($site['hard_addr']??'') ?>:<?= $site['hard_port']??'' ?></td></tr>
-    <tr><td class="label">DB Server 1</td>       <td class="val"><?= htmlspecialchars($db['mid']['host']??'(skipped)') ?> / <?= htmlspecialchars($db['mid']['name']??'') ?></td></tr>
-    <tr><td class="label">DB Server 2</td>       <td class="val"><?= htmlspecialchars($db['hard']['host']??'(skipped)') ?> / <?= htmlspecialchars($db['hard']['name']??'') ?></td></tr>
-    <tr><td class="label">Tables to Create</td>  <td class="val">WebCredits, WebshopItems, PendingDonations</td></tr>
+  <table class="summary-table">
+    <tr><td>Website Title</td>       <td><?= htmlspecialchars($site['title'] ?? '') ?></td></tr>
+    <tr><td>Admin Password</td>      <td>••••••••</td></tr>
+    <tr><td>Encryption Key</td>      <td><?= $site['regen_key'] ? '<span style="color:var(--danger)">⚠️ NEW key — old API keys invalidated</span>' : '<span style="color:var(--accent)">✅ Existing key preserved</span>' ?></td></tr>
+    <tr><td>DB Server 1</td>         <td><?= htmlspecialchars($db['mid']['host'] ?? '—') ?> / <?= htmlspecialchars($db['mid']['name'] ?? '') ?> <?= empty($db['mid']['pass']) ? '<span style="color:var(--blue)">(keeping stored password)</span>' : '<span style="color:var(--warn)">(new password)</span>' ?></td></tr>
+    <tr><td>DB Server 2</td>         <td><?= !empty($db['hard']['host']) ? htmlspecialchars($db['hard']['host']).' / '.htmlspecialchars($db['hard']['name'] ?? '') : '<span style="color:var(--muted)">Skipped</span>' ?> <?= (!empty($db['hard']['host']) && empty($db['hard']['pass'])) ? '<span style="color:var(--blue)">(keeping stored password)</span>' : (!empty($db['hard']['pass']) ? '<span style="color:var(--warn)">(new password)</span>' : '') ?></td></tr>
+    <tr><td>Server 1 display</td>    <td><?= htmlspecialchars($site['mid_name'] ?? '') ?> @ <?= htmlspecialchars($site['mid_address'] ?? '') ?>:<?= $site['mid_port'] ?? '' ?> <?= $site['mid_visible'] ? '' : '<span style="color:var(--muted)">(hidden)</span>' ?></td></tr>
+    <tr><td>Server 2 display</td>    <td><?= htmlspecialchars($site['hard_name'] ?? '') ?> @ <?= htmlspecialchars($site['hard_address'] ?? '') ?>:<?= $site['hard_port'] ?? '' ?> <?= $site['hard_visible'] ? '' : '<span style="color:var(--muted)">(hidden)</span>' ?></td></tr>
+    <tr><td>server_names</td>        <td>mid_rate: <em><?= htmlspecialchars($site['srv_mid_label'] ?? '') ?></em> &nbsp;|&nbsp; hard_rate: <em><?= htmlspecialchars($site['srv_hard_label'] ?? '') ?></em></td></tr>
+    <tr><td>Download Links</td>      <td><?= htmlspecialchars($site['dl1_label'] ?? '') ?> &amp; <?= htmlspecialchars($site['dl2_label'] ?? '') ?></td></tr>
+    <tr><td>Session Timeouts</td>    <td>Admin: <?= $site['sess_admin'] ?? 30 ?>m &nbsp;|&nbsp; User: <?= $site['sess_user'] ?? 10 ?>m</td></tr>
+    <tr><td>Conversion Rates</td>    <td>WCoinC: <?= $site['wcoinc'] ?? '' ?> &nbsp;|&nbsp; WCoinP: <?= $site['wcoinp'] ?? '' ?> &nbsp;|&nbsp; Goblin: <?= $site['goblin'] ?? '' ?></td></tr>
+    <tr><td>Webshop Prices</td>      <td>Level: <?= $site['price_level'] ?? '' ?> &nbsp;|&nbsp; Exc: <?= $site['price_exc'] ?? '' ?> &nbsp;|&nbsp; Luck/Skill: <?= $site['price_luck_skill'] ?? '' ?></td></tr>
+    <tr><td>Preserved</td>           <td style="color:var(--accent)">PayPal, PayMongo, QR keys &bull; tracked_items &bull; favicon &bull; wallpaper &bull; user_dashboard</td></tr>
   </table>
 
-  <div class="alert alert-warn">
-    🔑 A new random <strong>ENCRYPTION_KEY</strong> will be generated and saved to <code>config.php</code>.<br>
-    If you re-install, previously encrypted passwords in <code>settings.json</code> will become invalid.
-  </div>
+  <?php if ($site['regen_key']): ?>
+  <div class="alert ad">⚠️ New key selected — after install, re-enter PayPal &amp; PayMongo keys in Admin Panel → Donations.</div>
+  <?php else: ?>
+  <div class="alert as">✅ Existing encryption key preserved — all stored API keys remain valid.</div>
+  <?php endif; ?>
 
   <form method="POST" action="?step=5">
     <div class="btn-row">
-      <a href="?step=4" class="btn btn-secondary">← Back</a>
+      <a href="?step=4" class="btn btn-s">← Back</a>
       <button type="submit" name="install" class="btn btn-install">⚡ Install Now</button>
     </div>
   </form>
 
-<?php // ═══════════════ STEP 6 — Done ═══════════════
+<?php /* ═══ STEP 6 — Done ═══════════════════════════════════════ */
 elseif ($step === 6):
-  $db_results = $_SESSION['db_results'] ?? [];
+  $db_results  = $_SESSION['db_results']  ?? [];
+  $key_renewed = $_SESSION['key_renewed'] ?? false;
 ?>
-  <div class="done-icon">🎉</div>
-  <h2 style="text-align:center;margin-bottom:6px;">Installation Complete!</h2>
-  <p class="subtitle" style="text-align:center;">Kyana CMS has been configured successfully.</p>
+  <div style="text-align:center;font-size:3.5em;margin-bottom:12px;">🎉</div>
+  <h2 style="text-align:center;margin-bottom:5px;">Installation Complete!</h2>
+  <p class="csub" style="text-align:center;">Kyana CMS has been configured successfully.</p>
 
   <?php foreach ($db_results as $srv => $res): ?>
-  <div class="sql-result">
-    <div class="sql-result-header">
-      <?= $srv === 'mid' ? 'Server 1 (Mid Rate)' : 'Server 2 (Hard Rate)' ?>
-      &nbsp;—&nbsp;
-      <?= $res['ok'] ? '<span style="color:var(--accent)">✅ Connected</span>' : '<span style="color:var(--danger)">❌ ' . htmlspecialchars($res['msg']) . '</span>' ?>
+  <div class="sr">
+    <div class="sr-head">
+      <?= $srv === 'mid' ? 'Server 1 (Mid Rate)' : 'Server 2 (Hard Rate)' ?> —
+      <?= $res['ok'] ? '<span style="color:var(--accent)">✅ Connected</span>' : '<span style="color:var(--danger)">❌ '.htmlspecialchars($res['msg']).'</span>' ?>
     </div>
     <?php if ($res['ok'] && !empty($res['tables'])): ?>
-    <div class="sql-result-body">
-      <?php foreach ($res['tables'] as $tbl => $status): ?>
-      <div class="sql-row"><span><?= htmlspecialchars($tbl) ?></span><span><?= $status ?></span></div>
+    <div class="sr-body">
+      <?php foreach ($res['tables'] as $t => $status): ?>
+      <div class="sr-row"><span><?= htmlspecialchars($t) ?></span><span><?= $status ?></span></div>
       <?php endforeach; ?>
     </div>
     <?php endif; ?>
   </div>
   <?php endforeach; ?>
 
-  <ul class="done-steps">
-    <li>✅ <code>config.php</code> written with a fresh AES-256 encryption key</li>
-    <li>✅ <code>Configuration/settings.json</code> created</li>
-    <li>✅ <code>uploads/</code> and <code>uploads/proofs/</code> folders created</li>
-    <li>✅ SQL tables created on all connected databases</li>
-    <li>✅ <code>install.lock</code> written — installer is now locked</li>
+  <ul class="done-list">
+    <li>✅ <code>config.php</code> written — <?= $key_renewed ? '<strong>new</strong> AES-256 key generated' : 'existing key preserved' ?></li>
+    <li>✅ <code>Configuration/settings.json</code> updated</li>
+    <li>✅ Upload folders ready (<code>uploads/</code>, <code>uploads/proofs/</code>, <code>uploads/qr-ph/</code>, <code>uploads/items/</code>)</li>
+    <li>✅ SQL tables verified / created</li>
+    <li>✅ <code>install.lock</code> created — installer locked</li>
   </ul>
 
-  <div class="alert alert-danger" style="margin-top:12px;">
-    🗑️ <strong>Action required:</strong> Delete <code>install.php</code> from your server right now to prevent unauthorized re-configuration!
-  </div>
+  <?php if ($key_renewed): ?>
+  <div class="alert ad">⚠️ New encryption key was generated. Go to <strong>Admin Panel → Donations</strong> and re-enter your PayPal &amp; PayMongo API keys. Also re-save DB passwords in <strong>Admin Panel → Database</strong>.</div>
+  <?php endif; ?>
 
-  <div class="btn-row" style="justify-content:center;margin-top:22px;">
-    <a href="index.html" class="btn btn-primary">🌐 Go to Website</a>
-    <a href="AdminCP/dashboard.php" class="btn btn-secondary">🔧 Admin Panel</a>
+  <div class="alert ad" style="margin-top:10px;">🗑️ <strong>Delete <code>install/install.php</code> from your server right now!</strong></div>
+
+  <div class="btn-row" style="justify-content:center;margin-top:18px;">
+    <a href="../index.html" class="btn btn-p">🌐 Website</a>
+    <a href="../AdminCP/dashboard.php" class="btn btn-s">🔧 Admin Panel</a>
   </div>
 
 <?php endif; ?>
-
-</div><!-- /.card -->
+</div>
 </body>
 </html>
