@@ -1,6 +1,6 @@
 {
     "website_title": "Nebula M-U ",
-    "favicon_url": "uploads\/favicon-69a7a71db529f.jpg",
+    "favicon_url": "uploads/favicon-69a7a71db529f.jpg",
     "security": {
         "session_timeout_minutes": 30,
         "user_session_timeout_minutes": 10
@@ -21,13 +21,13 @@
     },
     "download_link_1": {
         "label": "Mediafire",
-        "url": "https:\/\/www.mediafire.com\/file\/oq31x9jfct5hys6\/KiraMU.rar\/file"
+        "url": "https://www.mediafire.com/file/oq31x9jfct5hys6/KiraMU.rar/file"
     },
     "download_link_2": {
         "label": "Mega",
-        "url": "https:\/\/mega.nz\/file\/Z8c1DRZa#hWrmkbiZZGZW31x1_sQZSwSJLOW-18vmeEH7NM3bgvs"
+        "url": "https://mega.nz/file/Z8c1DRZa#hWrmkbiZZGZW31x1_sQZSwSJLOW-18vmeEH7NM3bgvs"
     },
-    "wallpaper_url": "uploads\/wallpaper-69a78d140aba4.png",
+    "wallpaper_url": "uploads/wallpaper-69a78d140aba4.png",
     "mid_rate_server": {
         "name": "Nebula",
         "address": "127.0.0.1",
@@ -48,7 +48,18 @@
     "webshop": {
         "price_level": 10,
         "price_exc": 50,
-        "price_luck_skill": 25
+        "price_luck_skill": 25,
+        "mid_rate": {
+            "price_level": 25,
+            "price_exc": 50,
+            "price_luck_skill": 25,
+            "price_380": 100,
+            "price_harmony": 100,
+            "price_socket": 50,
+            "price_ancient": 100,
+            "price_jol_base": 100,
+            "price_jol_per_level": 0
+        }
     },
     "show_online_count": true,
     "tracked_items": [

@@ -191,9 +191,35 @@ async function loadWebshopItems() {
             availableTypes.forEach(type => {
                 catSelect.innerHTML += `<option value="${type}">${categoryNames[type] || `Category ${type}`}</option>`;
             });
+
+            // Update JoL price display after pricing is loaded
+            updateJolPrice();
         }
     } catch (e) { console.error('Webshop load error:', e); }
 }
+
+// --- ADDITIONAL JEWEL OF LIFE SYSTEM ---
+function updateJolPrice() {
+    const levelSel = document.getElementById('jol-level');
+    const priceEl  = document.getElementById('jol-total-price');
+    if (!levelSel || !priceEl) return;
+    const level = parseInt(levelSel.value);
+    if (level === 0) { priceEl.textContent = '0'; refreshGrandTotal(); return; }
+    const base     = parseInt(webshopPricing.price_jol_base      ?? 100);
+    const perStep  = parseInt(webshopPricing.price_jol_per_level ?? 50);
+    priceEl.textContent = base + (((level - 4) / 4) * perStep);
+    refreshGrandTotal();
+}
+
+function refreshGrandTotal() {
+    const itemPrice = parseInt(document.getElementById('shop-total-price')?.textContent || 0);
+    const jolPrice  = parseInt(document.getElementById('jol-total-price')?.textContent  || 0);
+    const grandEl   = document.getElementById('shop-grand-total');
+    const breakdown = document.getElementById('jol-price-breakdown');
+    if (grandEl) grandEl.textContent = itemPrice + jolPrice;
+    if (breakdown) breakdown.style.display = (jolPrice > 0) ? 'block' : 'none';
+}
+
 
 function filterShopItems() {
     const catSelect = document.getElementById('shop-category');
@@ -275,6 +301,11 @@ function updateExcLabels() {
 
 function applyItemFilters() {
     const itemSelect = document.getElementById('shop-item');
+
+    // Reset JoL whenever item changes
+    const jolSel = document.getElementById('jol-level');
+    if (jolSel) { jolSel.value = '0'; updateJolPrice(); }
+
     if (!itemSelect || !itemSelect.value) {
         document.getElementById('shop-group-luckskill').style.display = 'none';
         document.getElementById('shop-group-level').style.display = 'none';
@@ -427,6 +458,7 @@ function calculateShopPrice() {
     }
 
     document.getElementById('shop-total-price').textContent = totalPrice;
+    refreshGrandTotal();
 }
 
 async function buyWebshopItem() {
@@ -439,20 +471,27 @@ async function buyWebshopItem() {
     }
 
     const [itemType, itemIndex] = itemSelect.value.split('-');
-    const level = document.getElementById('shop-level').value;
-    const luck = document.getElementById('shop-luck').checked ? 1 : 0;
-    const skill = document.getElementById('shop-skill').checked ? 1 : 0;
-    const opt380 = document.getElementById('shop-380').checked ? 1 : 0;
+    const level   = document.getElementById('shop-level').value;
+    const luck    = document.getElementById('shop-luck').checked ? 1 : 0;
+    const skill   = document.getElementById('shop-skill').checked ? 1 : 0;
+    const opt380  = document.getElementById('shop-380').checked ? 1 : 0;
     const harmony = document.getElementById('shop-harmony').value;
     const sockets = document.getElementById('shop-sockets').value;
     const ancient = document.getElementById('shop-ancient') ? document.getElementById('shop-ancient').value : 0;
-    
+    const jolLevel = parseInt(document.getElementById('jol-level')?.value || 0);
+
     let excOpt = 0;
     document.querySelectorAll('.shop-exc:checked').forEach(cb => { excOpt += parseInt(cb.value); });
 
     const totalPrice = document.getElementById('shop-total-price').textContent;
+    const jolPrice   = parseInt(document.getElementById('jol-total-price')?.textContent || 0);
+    const grandTotal = parseInt(totalPrice) + (jolLevel > 0 ? jolPrice : 0);
 
-    if (!confirm(`Buy this item for ${totalPrice} WebCredits?\n\nWARNING: Make sure your character is OFFLINE and Warehouse has space.`)) return;
+    let confirmMsg = `Buy this item for ${grandTotal} WebCredits?`;
+    if (jolLevel > 0) confirmMsg += `\n  • Item: ${totalPrice} Credits\n  • Add. JoL +${jolLevel}: ${jolPrice} Credits`;
+    confirmMsg += `\n\nWARNING: Make sure your character is OFFLINE and Warehouse has space.`;
+
+    if (!confirm(confirmMsg)) return;
 
     msgDiv.innerHTML = '<span style="color:#f1c40f">Processing Order...</span>';
 
@@ -467,22 +506,20 @@ async function buyWebshopItem() {
     formData.append('harmony', harmony);
     formData.append('sockets', sockets);
     formData.append('ancient', ancient);
+    if (jolLevel > 0) formData.append('jolLevel', jolLevel);
 
     try {
         const response = await fetch('Configuration/webshop-buy.php', { method: 'POST', body: formData });
         const data = await response.json();
-        
         if (data.success) {
             msgDiv.innerHTML = `<span style="color:#28a745">✅ ${data.message}</span>`;
-            
-            // ---> INSTANT REFRESH ADDED HERE <---
-            loadUserData(); 
-            
+            loadUserData();
             setTimeout(() => {
                 msgDiv.innerHTML = '';
                 itemSelect.value = '';
+                if (document.getElementById('jol-level')) document.getElementById('jol-level').value = '0';
                 applyItemFilters();
-                calculateShopPrice(); 
+                calculateShopPrice();
             }, 3000);
         } else {
             msgDiv.innerHTML = `<span style="color:#dc3545">❌ ${data.message}</span>`;
@@ -900,7 +937,9 @@ function addToCart() {
         sockets: parseInt(document.getElementById('shop-sockets').value),
         ancient: ancientVal,
         ancientName: ancientName,
-        price: parseInt(document.getElementById('shop-total-price').textContent),
+        jolLevel: parseInt(document.getElementById('jol-level')?.value || 0),
+        jolPrice: parseInt(document.getElementById('jol-total-price')?.textContent || 0),
+        price: parseInt(document.getElementById('shop-total-price').textContent) + parseInt(document.getElementById('jol-total-price')?.textContent || 0),
         img: `uploads/items/${itemType}-${itemIndex}.gif`
     };
 
@@ -977,6 +1016,7 @@ function showItemTooltip(e, uniqueId) {
     if (item.ancient > 0)     html += `<div style="color:#28a745;">Ancient (Set ${item.ancient})</div>`;
     if (item.sockets > 0)     html += `<div style="color:#b19cd9;">${item.sockets} Socket${item.sockets !== 1 ? 's' : ''}</div>`;
     if (item.opt380)          html += `<div style="color:#eebb00;">380 PvP Option</div>`;
+    if (item.jolLevel > 0)    html += `<div style="color:#4a90d9;">Add. JoL +${item.jolLevel} (${item.jolPrice} Credits)</div>`;
 
     tooltip.innerHTML = html;
     tooltip.style.display = 'block';

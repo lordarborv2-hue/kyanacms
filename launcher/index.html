@@ -1,0 +1,613 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>MU Online — Launcher</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:      #0a0c10;
+  --panel:   #0f1218;
+  --surface: #151a22;
+  --border:  #1e2836;
+  --border2: #2a3a4e;
+  --gold:    #c8973a;
+  --gold2:   #f0c060;
+  --teal:    #28c8a0;
+  --blue:    #3a8ef0;
+  --red:     #e04444;
+  --text:    #d0d8e8;
+  --muted:   #5a6880;
+  --font:    'Rajdhani', sans-serif;
+  --mono:    'Share Tech Mono', monospace;
+}
+
+html, body {
+  width: 800px;
+  height: 520px;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  user-select: none;
+}
+
+/* Scanlines */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg, transparent, transparent 2px,
+    rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px
+  );
+}
+
+/* Wallpaper */
+.bg-wrap {
+  position: fixed; inset: 0; z-index: 0;
+  background-size: cover;
+  background-position: center;
+  background-repeat: no-repeat;
+}
+.bg-overlay {
+  position: fixed; inset: 0; z-index: 1;
+  background: linear-gradient(135deg,
+    rgba(5,8,15,0.88) 0%,
+    rgba(10,15,25,0.70) 40%,
+    rgba(5,8,15,0.85) 100%
+  );
+}
+
+/* Layout */
+.layout {
+  position: relative; z-index: 10;
+  display: flex;
+  width: 800px; height: 520px;
+}
+
+/* ── LEFT PANEL (branding + news) ── */
+.left-panel {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  padding: 32px 28px;
+  border-right: 1px solid rgba(255,255,255,0.06);
+}
+
+.logo-area { margin-bottom: 24px; }
+.logo-title {
+  font-size: 36px; font-weight: 700; letter-spacing: 4px;
+  text-transform: uppercase; line-height: 1;
+  color: var(--gold2);
+  text-shadow: 0 0 40px rgba(240,192,96,0.4);
+}
+.logo-sub {
+  font-size: 11px; letter-spacing: 3px; text-transform: uppercase;
+  color: var(--muted); margin-top: 4px;
+  font-family: var(--mono);
+}
+
+.server-status-row {
+  display: flex; gap: 8px; margin-bottom: 20px;
+}
+.srv-badge {
+  display: flex; align-items: center; gap: 6px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid var(--border2);
+  border-radius: 4px; padding: 6px 12px;
+  flex: 1;
+}
+.srv-dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  background: var(--muted); flex-shrink: 0;
+  transition: background .3s;
+}
+.srv-dot.online  { background: var(--teal); box-shadow: 0 0 6px var(--teal); }
+.srv-dot.offline { background: var(--red);  box-shadow: 0 0 6px var(--red);  }
+.srv-info { flex: 1; min-width: 0; }
+.srv-name { font-size: 12px; font-weight: 700; color: var(--text); }
+.srv-stat { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+
+.news-box {
+  flex: 1; overflow: hidden;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+}
+.news-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+  background: rgba(200,151,58,0.08);
+}
+.news-header-title {
+  font-size: 10px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; color: var(--gold);
+}
+.news-list {
+  overflow-y: auto; height: calc(100% - 30px);
+  padding: 6px 0;
+}
+.news-list::-webkit-scrollbar { width: 3px; }
+.news-list::-webkit-scrollbar-thumb { background: var(--border2); }
+.news-item {
+  padding: 6px 10px; border-bottom: 1px solid var(--border);
+  cursor: pointer; transition: background .15s;
+}
+.news-item:last-child { border-bottom: none; }
+.news-item:hover { background: rgba(255,255,255,0.03); }
+.news-item-subject {
+  font-size: 12px; font-weight: 600; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.news-item-date {
+  font-size: 10px; color: var(--muted); font-family: var(--mono); margin-top: 1px;
+}
+
+/* ── RIGHT PANEL (login / register) ── */
+.right-panel {
+  width: 300px; flex-shrink: 0;
+  display: flex; flex-direction: column;
+  padding: 28px 24px;
+  background: rgba(10,12,18,0.6);
+}
+
+.panel-title {
+  font-size: 11px; font-weight: 700; letter-spacing: 2px;
+  text-transform: uppercase; color: var(--gold);
+  margin-bottom: 16px; padding-bottom: 8px;
+  border-bottom: 1px solid rgba(200,151,58,0.2);
+}
+
+/* Mode switcher */
+.mode-switch {
+  display: flex; margin-bottom: 18px;
+  background: var(--panel); border-radius: 4px; padding: 3px;
+  border: 1px solid var(--border);
+}
+.mode-btn {
+  flex: 1; font-family: var(--font); font-size: 11px; font-weight: 700;
+  letter-spacing: .8px; text-transform: uppercase;
+  border: none; background: transparent; color: var(--muted);
+  padding: 6px; border-radius: 3px; cursor: pointer;
+  transition: all .2s;
+}
+.mode-btn.active {
+  background: rgba(200,151,58,0.15);
+  color: var(--gold2);
+  box-shadow: inset 0 0 0 1px rgba(200,151,58,0.3);
+}
+
+/* Form */
+.form-area { display: none; flex-direction: column; gap: 10px; }
+.form-area.active { display: flex; }
+
+.field-lbl {
+  font-size: 10px; font-weight: 700; letter-spacing: .8px;
+  text-transform: uppercase; color: var(--muted);
+  display: block; margin-bottom: 4px;
+}
+
+select, input[type="text"], input[type="password"] {
+  font-family: var(--font); font-size: 13px; font-weight: 600;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border2); border-radius: 4px;
+  padding: 8px 10px; width: 100%; outline: none;
+  transition: border-color .2s;
+}
+select:focus, input:focus { border-color: var(--gold); }
+select option { background: #111; }
+
+.submit-btn {
+  font-family: var(--font); font-size: 13px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+  border: none; border-radius: 4px; cursor: pointer;
+  padding: 10px; width: 100%;
+  transition: opacity .15s, transform .1s;
+  margin-top: 2px;
+}
+.submit-btn:hover { opacity: .85; }
+.submit-btn:active { transform: scale(.98); }
+.submit-btn.login-btn    { background: linear-gradient(135deg, #1a6abf, var(--blue)); color: #fff; }
+.submit-btn.register-btn { background: linear-gradient(135deg, #1a7a44, var(--teal)); color: #000; }
+
+.msg-area {
+  font-size: 11px; font-weight: 700; min-height: 16px;
+  text-align: center; margin-top: 2px;
+}
+.msg-error   { color: var(--red);  }
+.msg-success { color: var(--teal); }
+
+/* Footer */
+.right-footer {
+  margin-top: auto;
+  display: flex; justify-content: space-between;
+  align-items: center; padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.footer-link {
+  font-size: 10px; color: var(--muted); text-decoration: none;
+  font-family: var(--mono); letter-spacing: .5px;
+  transition: color .2s; cursor: pointer;
+}
+.footer-link:hover { color: var(--text); }
+.version-badge {
+  font-size: 9px; color: var(--border2); font-family: var(--mono);
+}
+
+/* News expanded overlay */
+.news-overlay {
+  display: none; position: fixed; inset: 0; z-index: 200;
+  background: rgba(0,0,0,0.85);
+  align-items: center; justify-content: center;
+}
+.news-overlay.open { display: flex; }
+.news-modal {
+  background: #0d1117; border: 1px solid var(--border2);
+  border-radius: 6px; width: 520px; max-height: 420px;
+  display: flex; flex-direction: column;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.8);
+}
+.news-modal-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 10px 16px; border-bottom: 1px solid var(--border);
+  background: rgba(200,151,58,0.08);
+}
+.news-modal-title { font-size: 13px; font-weight: 700; color: var(--gold2); }
+.news-modal-date  { font-size: 10px; color: var(--muted); font-family: var(--mono); }
+.news-modal-body  { flex: 1; overflow-y: auto; padding: 14px 16px; font-size: 12px; line-height: 1.7; color: var(--text); }
+.news-modal-body::-webkit-scrollbar { width: 4px; }
+.news-modal-body::-webkit-scrollbar-thumb { background: var(--border2); }
+.news-modal-close {
+  font-family: var(--font); font-size: 11px; font-weight: 700;
+  background: var(--border); color: var(--text); border: none;
+  padding: 4px 12px; border-radius: 3px; cursor: pointer;
+}
+</style>
+</head>
+<body>
+
+<!-- Wallpaper -->
+<div class="bg-wrap" id="bg-wrap"></div>
+<div class="bg-overlay"></div>
+
+<!-- Layout -->
+<div class="layout">
+
+  <!-- LEFT: Branding + Server Status + News -->
+  <div class="left-panel">
+    <div class="logo-area">
+      <div class="logo-title" id="site-title">⚔ MU Online</div>
+      <div class="logo-sub">Season 6 · Private Server</div>
+    </div>
+
+    <div class="server-status-row" id="srv-status-row">
+      <!-- populated by JS -->
+    </div>
+
+    <div class="news-box">
+      <div class="news-header">
+        <span class="news-header-title">Latest News</span>
+        <span style="font-size:10px; color:var(--muted); font-family:var(--mono);" id="news-server-label"></span>
+      </div>
+      <div class="news-list" id="news-list">
+        <div style="padding:20px; text-align:center; color:var(--muted); font-size:11px;">Loading...</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Login / Register -->
+  <div class="right-panel">
+    <div class="panel-title">Account Access</div>
+
+    <div class="mode-switch">
+      <button class="mode-btn active" onclick="setMode('login')">Login</button>
+      <button class="mode-btn" onclick="setMode('register')">Register</button>
+    </div>
+
+    <!-- LOGIN FORM -->
+    <div class="form-area active" id="form-login">
+      <div>
+        <label class="field-lbl">Server</label>
+        <select id="login-server"><option value="">Loading...</option></select>
+      </div>
+      <div>
+        <label class="field-lbl">Username</label>
+        <input type="text" id="login-user" placeholder="Account ID" autocomplete="username">
+      </div>
+      <div>
+        <label class="field-lbl">Password</label>
+        <input type="password" id="login-pass" placeholder="••••••••" autocomplete="current-password"
+               onkeydown="if(event.key==='Enter') doLogin()">
+      </div>
+      <button class="submit-btn login-btn" onclick="doLogin()" id="login-btn">Login</button>
+      <div class="msg-area" id="login-msg"></div>
+    </div>
+
+    <!-- REGISTER FORM -->
+    <div class="form-area" id="form-register">
+      <div>
+        <label class="field-lbl">Server</label>
+        <select id="reg-server"><option value="">Loading...</option></select>
+      </div>
+      <div>
+        <label class="field-lbl">Username <span style="color:var(--muted); font-weight:400;">(4-10 chars)</span></label>
+        <input type="text" id="reg-user" placeholder="Choose a username" maxlength="10">
+      </div>
+      <div>
+        <label class="field-lbl">Password</label>
+        <input type="password" id="reg-pass" placeholder="Min 4 characters">
+      </div>
+      <div>
+        <label class="field-lbl">Confirm Password</label>
+        <input type="password" id="reg-pass2" placeholder="Repeat password"
+               onkeydown="if(event.key==='Enter') doRegister()">
+      </div>
+      <button class="submit-btn register-btn" onclick="doRegister()" id="reg-btn">Create Account</button>
+      <div class="msg-area" id="reg-msg"></div>
+    </div>
+
+    <div class="right-footer">
+      <span class="footer-link" onclick="window.open('index.html','_blank')">Full Site ↗</span>
+      <span class="version-badge">Kyana CMS</span>
+    </div>
+  </div>
+</div>
+
+<!-- News detail overlay -->
+<div class="news-overlay" id="news-overlay" onclick="closeNews()">
+  <div class="news-modal" onclick="event.stopPropagation()">
+    <div class="news-modal-header">
+      <span class="news-modal-title" id="nm-title">—</span>
+      <div style="display:flex;align-items:center;gap:10px;">
+        <span class="news-modal-date" id="nm-date"></span>
+        <button class="news-modal-close" onclick="closeNews()">✕ Close</button>
+      </div>
+    </div>
+    <div class="news-modal-body" id="nm-body"></div>
+  </div>
+</div>
+
+<script>
+'use strict';
+
+// ── INIT ───────────────────────────────────────
+document.addEventListener('DOMContentLoaded', async () => {
+  await loadSettings();
+  loadServerStatus();
+  setInterval(loadServerStatus, 30000);
+});
+
+// ── SETTINGS ───────────────────────────────────
+async function loadSettings() {
+  try {
+    const r = await fetch('Configuration/settings.json?v=' + Date.now());
+    const s = await r.json();
+
+    // Site title
+    document.getElementById('site-title').textContent = '⚔ ' + (s.website_title || 'MU Online');
+    document.title = s.website_title || 'MU Online';
+
+    // Wallpaper
+    if (s.wallpaper_url) {
+      document.getElementById('bg-wrap').style.backgroundImage = `url('${s.wallpaper_url}')`;
+    }
+
+    // Server dropdowns
+    const servers = [];
+    if (s.mid_rate_server?.visible !== false) servers.push({ val: 'mid', label: s.mid_rate_server?.name || 'Server 1' });
+    if (s.hard_rate_server?.visible !== false) servers.push({ val: 'hard', label: s.hard_rate_server?.name || 'Server 2' });
+
+    ['login-server', 'reg-server'].forEach(id => {
+      const el = document.getElementById(id);
+      el.innerHTML = '<option value="">-- Select Server --</option>';
+      servers.forEach(srv => {
+        el.innerHTML += `<option value="${srv.val}">${srv.label}</option>`;
+      });
+    });
+
+    // Default select first server
+    if (servers.length) {
+      document.getElementById('login-server').value = servers[0].val;
+      document.getElementById('reg-server').value   = servers[0].val;
+    }
+
+    // Server status row
+    const row = document.getElementById('srv-status-row');
+    row.innerHTML = '';
+    servers.forEach(srv => {
+      row.innerHTML += `
+        <div class="srv-badge">
+          <div class="srv-dot" id="dot-${srv.val}"></div>
+          <div class="srv-info">
+            <div class="srv-name">${srv.label}</div>
+            <div class="srv-stat" id="stat-${srv.val}">Checking...</div>
+          </div>
+        </div>`;
+    });
+
+    // News — show first visible server's news
+    const newsKey = servers[0]?.val === 'hard' ? 'hard_rate_news' : 'mid_rate_news';
+    const newsLabel = servers[0]?.label || '';
+    document.getElementById('news-server-label').textContent = newsLabel;
+    loadNews(newsKey);
+
+  } catch (e) { console.error('Settings load failed', e); }
+}
+
+// ── SERVER STATUS ──────────────────────────────
+async function loadServerStatus() {
+  try {
+    const r = await fetch('Configuration/status-api.php?v=' + Date.now());
+    const d = await r.json();
+
+    ['mid', 'hard'].forEach(key => {
+      const statusKey = key + '_rate_status';
+      if (!d[statusKey]) return;
+      const online = d[statusKey] === 'Online';
+      const dot    = document.getElementById('dot-' + key);
+      const stat   = document.getElementById('stat-' + key);
+      if (dot)  { dot.className = 'srv-dot ' + (online ? 'online' : 'offline'); }
+      if (stat) { stat.textContent = online ? 'Online' : 'Offline'; }
+    });
+
+    // Online counts
+    ['mid', 'hard'].forEach(async key => {
+      const stat = document.getElementById('stat-' + key);
+      if (!stat) return;
+      try {
+        const cr = await fetch(`Configuration/api.php?server=${key}&v=` + Date.now());
+        const cd = await cr.json();
+        if (cd.online !== undefined && stat) {
+          const cur = stat.textContent.replace(/\s*·.*/,'');
+          stat.textContent = cur + ' · ' + cd.online + ' online';
+        }
+      } catch (e) {}
+    });
+
+  } catch (e) {}
+}
+
+// ── NEWS ───────────────────────────────────────
+async function loadNews(newsKey) {
+  try {
+    const r = await fetch('Configuration/news.json?v=' + Date.now());
+    const d = await r.json();
+    const posts = d[newsKey] || [];
+    const list = document.getElementById('news-list');
+
+    if (!posts.length) {
+      list.innerHTML = '<div style="padding:16px; text-align:center; color:var(--muted); font-size:11px;">No news yet.</div>';
+      return;
+    }
+
+    list.innerHTML = posts.map((p, i) => `
+      <div class="news-item" onclick="openNews(${i})">
+        <div class="news-item-subject">${p.subject}</div>
+        <div class="news-item-date">${p.date}</div>
+      </div>
+    `).join('');
+
+    // Store for modal
+    window._newsPosts = posts;
+
+  } catch (e) {
+    document.getElementById('news-list').innerHTML =
+      '<div style="padding:16px; text-align:center; color:var(--muted); font-size:11px;">Could not load news.</div>';
+  }
+}
+
+function openNews(i) {
+  const p = window._newsPosts?.[i];
+  if (!p) return;
+  document.getElementById('nm-title').textContent = p.subject;
+  document.getElementById('nm-date').textContent  = p.date;
+  document.getElementById('nm-body').innerHTML    = p.details;
+  document.getElementById('news-overlay').classList.add('open');
+}
+function closeNews() { document.getElementById('news-overlay').classList.remove('open'); }
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeNews(); });
+
+// ── MODE SWITCH ────────────────────────────────
+function setMode(mode) {
+  document.querySelectorAll('.mode-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.form-area').forEach(f => f.classList.remove('active'));
+  document.querySelector(`.mode-btn[onclick="setMode('${mode}')"]`).classList.add('active');
+  document.getElementById('form-' + mode).classList.add('active');
+  document.getElementById(mode === 'login' ? 'login-msg' : 'reg-msg').textContent = '';
+}
+
+// ── LOGIN ──────────────────────────────────────
+async function doLogin() {
+  const server = document.getElementById('login-server').value;
+  const user   = document.getElementById('login-user').value.trim();
+  const pass   = document.getElementById('login-pass').value;
+  const msg    = document.getElementById('login-msg');
+  const btn    = document.getElementById('login-btn');
+
+  if (!server) { showMsg(msg, 'Select a server.', 'error'); return; }
+  if (!user)   { showMsg(msg, 'Enter your username.', 'error'); return; }
+  if (!pass)   { showMsg(msg, 'Enter your password.', 'error'); return; }
+
+  btn.disabled = true; btn.textContent = 'Connecting...';
+  showMsg(msg, '', '');
+
+  const fd = new FormData();
+  fd.append('server', server);
+  fd.append('username', user);
+  fd.append('password', pass);
+
+  try {
+    const r = await fetch('Configuration/login.php', { method: 'POST', body: fd });
+    const d = await r.json();
+
+    if (d.success) {
+      showMsg(msg, '✅ Logging in...', 'success');
+      // Redirect to the launcher dashboard
+      setTimeout(() => { window.location.href = 'launcher-dashboard.html'; }, 600);
+    } else {
+      showMsg(msg, '❌ ' + d.message, 'error');
+      btn.disabled = false; btn.textContent = 'Login';
+    }
+  } catch (e) {
+    showMsg(msg, '❌ Connection error.', 'error');
+    btn.disabled = false; btn.textContent = 'Login';
+  }
+}
+
+// ── REGISTER ───────────────────────────────────
+async function doRegister() {
+  const server = document.getElementById('reg-server').value;
+  const user   = document.getElementById('reg-user').value.trim();
+  const pass   = document.getElementById('reg-pass').value;
+  const pass2  = document.getElementById('reg-pass2').value;
+  const msg    = document.getElementById('reg-msg');
+  const btn    = document.getElementById('reg-btn');
+
+  if (!server)         { showMsg(msg, 'Select a server.', 'error'); return; }
+  if (!user)           { showMsg(msg, 'Enter a username.', 'error'); return; }
+  if (!/^[a-zA-Z0-9]{4,10}$/.test(user)) { showMsg(msg, 'Username: 4-10 alphanumeric chars.', 'error'); return; }
+  if (pass.length < 4) { showMsg(msg, 'Password must be at least 4 chars.', 'error'); return; }
+  if (pass !== pass2)  { showMsg(msg, 'Passwords do not match.', 'error'); return; }
+
+  btn.disabled = true; btn.textContent = 'Creating...';
+  showMsg(msg, '', '');
+
+  const fd = new FormData();
+  fd.append('server', server);
+  fd.append('username', user);
+  fd.append('password', pass);
+
+  try {
+    const r = await fetch('Configuration/register.php', { method: 'POST', body: fd });
+    const d = await r.json();
+
+    if (d.success) {
+      showMsg(msg, `✅ Account "${user}" created! You can now login.`, 'success');
+      setTimeout(() => {
+        setMode('login');
+        document.getElementById('login-user').value = user;
+        document.getElementById('login-server').value = server;
+      }, 1800);
+    } else {
+      showMsg(msg, '❌ ' + d.message, 'error');
+    }
+  } catch (e) {
+    showMsg(msg, '❌ Connection error.', 'error');
+  }
+
+  btn.disabled = false; btn.textContent = 'Create Account';
+}
+
+// ── HELPERS ────────────────────────────────────
+function showMsg(el, text, type) {
+  el.textContent = text;
+  el.className = 'msg-area' + (type === 'error' ? ' msg-error' : type === 'success' ? ' msg-success' : '');
+}
+</script>
+</body>
+</html>

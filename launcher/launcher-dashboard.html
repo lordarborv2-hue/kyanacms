@@ -1,0 +1,1352 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Dashboard</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Rajdhani:wght@400;500;600;700&family=Share+Tech+Mono&display=swap');
+
+/* ── RESET & ROOT ─────────────────────────────── */
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0a0c10;
+  --panel:    #0f1218;
+  --surface:  #151a22;
+  --border:   #1e2836;
+  --border2:  #2a3a4e;
+  --gold:     #c8973a;
+  --gold2:    #f0c060;
+  --teal:     #28c8a0;
+  --blue:     #3a8ef0;
+  --red:      #e04444;
+  --purple:   #8855ee;
+  --text:     #d0d8e8;
+  --muted:    #5a6880;
+  --exc:      #4a9eff;
+  --ancient:  #28a745;
+  --harm:     #f0c060;
+  --radius:   4px;
+  --font:     'Rajdhani', sans-serif;
+  --mono:     'Share Tech Mono', monospace;
+}
+
+html, body {
+  width: 800px; height: 520px;
+  overflow: hidden;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font);
+  font-size: 13px;
+  user-select: none;
+}
+
+/* ── SCANLINE OVERLAY ─────────────────────────── */
+body::before {
+  content: '';
+  position: fixed; inset: 0; z-index: 9999; pointer-events: none;
+  background: repeating-linear-gradient(
+    0deg,
+    transparent, transparent 2px,
+    rgba(0,0,0,0.06) 2px, rgba(0,0,0,0.06) 4px
+  );
+}
+
+/* ── TOPBAR ───────────────────────────────────── */
+.topbar {
+  display: flex; align-items: center; justify-content: space-between;
+  height: 38px; padding: 0 12px;
+  background: linear-gradient(90deg, #0a0f18 0%, #111827 50%, #0a0f18 100%);
+  border-bottom: 1px solid var(--border2);
+  position: relative;
+}
+.topbar::after {
+  content: '';
+  position: absolute; bottom: 0; left: 0; right: 0; height: 1px;
+  background: linear-gradient(90deg, transparent, var(--gold), transparent);
+  opacity: 0.4;
+}
+
+.topbar-left { display: flex; align-items: center; gap: 10px; }
+.topbar-logo {
+  font-size: 15px; font-weight: 700; letter-spacing: 2px;
+  color: var(--gold2); text-transform: uppercase;
+}
+.topbar-server {
+  font-size: 10px; font-weight: 600; letter-spacing: 1px;
+  color: var(--muted); text-transform: uppercase;
+  background: rgba(255,255,255,0.04); border: 1px solid var(--border2);
+  padding: 2px 8px; border-radius: 2px;
+}
+
+.topbar-right { display: flex; align-items: center; gap: 8px; }
+.user-label { font-size: 12px; color: var(--muted); }
+.user-name  { font-size: 13px; font-weight: 700; color: var(--teal); letter-spacing: .5px; }
+
+.btn-sm {
+  font-family: var(--font); font-size: 11px; font-weight: 700;
+  letter-spacing: .5px; text-transform: uppercase;
+  border: none; border-radius: var(--radius); cursor: pointer;
+  padding: 4px 12px; transition: opacity .15s, transform .1s;
+}
+.btn-sm:hover { opacity: .85; }
+.btn-sm:active { transform: scale(.96); }
+.btn-teal     { background: var(--teal);   color: #000; }
+.btn-red      { background: var(--red);    color: #fff; }
+.btn-gold     { background: var(--gold);   color: #000; }
+.btn-blue     { background: var(--blue);   color: #fff; }
+.btn-purple   { background: var(--purple); color: #fff; }
+.btn-gray     { background: #1e2836;       color: var(--text); border: 1px solid var(--border2); }
+
+/* ── STATS STRIP ──────────────────────────────── */
+.stats-strip {
+  display: flex; align-items: center;
+  height: 34px; padding: 0 12px; gap: 4px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border);
+}
+.stat-item {
+  display: flex; align-items: center; gap: 6px;
+  padding: 0 10px;
+  border-right: 1px solid var(--border);
+  height: 100%;
+}
+.stat-item:last-of-type { border-right: none; }
+.stat-label { font-size: 10px; font-weight: 600; color: var(--muted); letter-spacing: .8px; text-transform: uppercase; }
+.stat-val   { font-family: var(--mono); font-size: 13px; color: var(--gold2); font-weight: 700; }
+.stat-val.teal { color: var(--teal); }
+.stats-actions { margin-left: auto; display: flex; gap: 6px; }
+
+/* ── MAIN BODY ────────────────────────────────── */
+.body-area {
+  display: flex;
+  height: calc(520px - 38px - 34px - 30px); /* topbar + strip + tabs */
+}
+
+/* ── TABS ─────────────────────────────────────── */
+.tabs-bar {
+  display: flex; height: 30px;
+  background: var(--panel);
+  border-bottom: 1px solid var(--border2);
+}
+.tab {
+  font-family: var(--font); font-size: 11px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+  border: none; background: transparent; color: var(--muted);
+  padding: 0 16px; cursor: pointer; position: relative;
+  transition: color .2s;
+  border-right: 1px solid var(--border);
+}
+.tab:hover { color: var(--text); }
+.tab.active { color: var(--gold2); background: rgba(200,151,58,0.08); }
+.tab.active::after {
+  content: ''; position: absolute; bottom: 0; left: 0; right: 0; height: 2px;
+  background: var(--gold);
+}
+.tab.tab-donate { color: var(--teal); }
+.tab.tab-donate.active { color: var(--teal); background: rgba(40,200,160,0.08); }
+.tab.tab-donate.active::after { background: var(--teal); }
+
+/* ── PANEL CONTENT ────────────────────────────── */
+.panel { display: none; width: 100%; height: 100%; overflow-y: auto; overflow-x: hidden; }
+.panel.active { display: flex; flex-direction: column; }
+.panel::-webkit-scrollbar { width: 4px; }
+.panel::-webkit-scrollbar-track { background: var(--panel); }
+.panel::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ── CHARACTERS PANEL ─────────────────────────── */
+#panel-chars {
+  padding: 10px 12px;
+}
+.char-table { width: 100%; border-collapse: collapse; }
+.char-table th {
+  font-size: 9px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--muted); padding: 4px 6px; text-align: center;
+  border-bottom: 1px solid var(--border2);
+  background: var(--panel);
+  position: sticky; top: 0; z-index: 2;
+}
+.char-table td {
+  padding: 5px 6px; text-align: center;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.char-table tr:hover td { background: rgba(255,255,255,0.03); }
+.char-name  { text-align: left !important; font-weight: 700; color: #fff; }
+.char-class { text-align: left !important; font-size: 11px; color: var(--muted); }
+.char-lvl   { color: var(--gold2); font-weight: 700; font-family: var(--mono); }
+.char-rst   { color: var(--teal);  font-weight: 700; font-family: var(--mono); }
+.pk-red     { color: var(--red);   font-weight: 700; }
+td.manage   { padding: 3px 6px; }
+
+/* ── WEBSHOP PANEL ────────────────────────────── */
+#panel-shop {
+  flex-direction: row !important;
+}
+.shop-left, .shop-right {
+  padding: 10px;
+  overflow-y: auto;
+  height: 100%;
+}
+.shop-left  { width: 340px; border-right: 1px solid var(--border); flex-shrink: 0; }
+.shop-right { flex: 1; display: flex; flex-direction: column; gap: 8px; }
+.shop-right::-webkit-scrollbar { width: 4px; }
+.shop-right::-webkit-scrollbar-thumb { background: var(--border2); }
+
+.field-lbl {
+  font-size: 10px; font-weight: 700; letter-spacing: .8px;
+  text-transform: uppercase; color: var(--muted); margin-bottom: 4px; display: block;
+}
+.field-lbl span { color: var(--gold); }
+select, input[type="number"] {
+  font-family: var(--font); font-size: 12px; font-weight: 600;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border2); border-radius: var(--radius);
+  padding: 5px 8px; width: 100%; outline: none;
+  transition: border-color .2s;
+}
+select:focus, input[type="number"]:focus { border-color: var(--gold); }
+select option { background: #111; }
+
+.field-row { margin-bottom: 8px; }
+
+.exc-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 4px; margin-top: 4px;
+}
+.exc-label {
+  display: flex; align-items: center; gap: 5px;
+  font-size: 11px; color: var(--exc); cursor: pointer;
+  padding: 3px 6px; border: 1px solid transparent;
+  border-radius: var(--radius); transition: all .15s;
+}
+.exc-label:hover { background: rgba(74,158,255,.1); border-color: rgba(74,158,255,.3); }
+.exc-label input { accent-color: var(--exc); }
+.exc-label.disabled { opacity: .35; pointer-events: none; }
+
+.luckskill-row {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4px; margin-bottom: 8px;
+}
+.ls-label {
+  display: flex; align-items: center; gap: 5px; cursor: pointer;
+  font-size: 11px; padding: 5px 8px; border-radius: var(--radius);
+  border: 1px solid var(--border2); color: var(--text);
+  transition: all .15s;
+}
+.ls-label:hover { border-color: var(--gold); }
+.ls-label input { accent-color: var(--gold); }
+
+/* Item Preview */
+.item-preview {
+  background: rgba(0,0,0,0.4);
+  border: 1px solid var(--border2);
+  border-radius: var(--radius);
+  display: flex; align-items: center; justify-content: center;
+  height: 100px; position: relative; overflow: hidden;
+}
+.item-preview::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at center, rgba(200,151,58,0.06) 0%, transparent 70%);
+}
+.item-preview img {
+  max-width: 80px; max-height: 80px;
+  image-rendering: pixelated;
+  filter: drop-shadow(0 0 8px rgba(200,151,58,0.4));
+}
+
+.price-display {
+  background: var(--surface); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 8px 12px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.price-label { font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); }
+.price-val   { font-family: var(--mono); font-size: 16px; font-weight: 700; color: var(--gold2); }
+
+.shop-btns { display: flex; flex-direction: column; gap: 6px; }
+.btn-full {
+  font-family: var(--font); font-size: 12px; font-weight: 700;
+  letter-spacing: 1px; text-transform: uppercase;
+  border: none; border-radius: var(--radius); cursor: pointer;
+  padding: 8px; width: 100%; transition: opacity .15s, transform .1s;
+}
+.btn-full:hover { opacity: .85; }
+.btn-full:active { transform: scale(.98); }
+.btn-full.buy    { background: linear-gradient(135deg, #1a7a44, var(--teal)); color: #000; }
+.btn-full.cart   { background: var(--blue); color: #fff; }
+.shop-msg { font-size: 11px; min-height: 16px; text-align: center; font-weight: 600; }
+
+/* Advanced opts */
+.adv-opts {
+  background: rgba(0,0,0,0.2); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 8px; display: none;
+  flex-direction: column; gap: 6px; margin-bottom: 8px;
+}
+.adv-opts.show { display: flex; }
+.adv-lbl { font-size: 10px; font-weight: 700; letter-spacing: .8px; text-transform: uppercase; color: var(--muted); margin-bottom: 3px; display: block; }
+
+/* ── DONATE PANEL ─────────────────────────────── */
+#panel-donate {
+  flex-direction: row !important;
+  gap: 0;
+}
+.donate-col {
+  flex: 1; padding: 12px; border-right: 1px solid var(--border);
+  display: flex; flex-direction: column; gap: 8px;
+  overflow-y: auto; height: 100%;
+}
+.donate-col:last-child { border-right: none; }
+.donate-col h4 {
+  font-size: 11px; font-weight: 700; letter-spacing: 1.5px;
+  text-transform: uppercase; padding-bottom: 6px;
+  border-bottom: 1px solid var(--border);
+  margin-bottom: 2px;
+}
+.h4-paypal  { color: var(--blue);   }
+.h4-qr      { color: var(--gold2);  }
+.h4-paymongo{ color: var(--purple); }
+
+.qr-img-wrap {
+  background: #fff; border-radius: var(--radius); padding: 6px;
+  display: inline-flex; align-items: center; justify-content: center;
+  cursor: zoom-in; align-self: center;
+}
+.qr-img-wrap img { width: 90px; height: 90px; display: block; }
+
+.rate-badge {
+  font-size: 10px; color: var(--muted); text-align: center;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: var(--radius); padding: 4px 8px;
+}
+.rate-badge strong { color: var(--teal); font-family: var(--mono); }
+
+.receive-box {
+  text-align: center; background: var(--surface); border: 1px solid var(--border2);
+  border-radius: var(--radius); padding: 6px;
+}
+.receive-box .val { font-family: var(--mono); font-size: 18px; color: var(--teal); font-weight: 700; }
+.receive-box .lbl { font-size: 10px; color: var(--muted); }
+
+input[type="text"], input[type="password"], input[type="file"] {
+  font-family: var(--font); font-size: 12px; font-weight: 600;
+  background: var(--surface); color: var(--text);
+  border: 1px solid var(--border2); border-radius: var(--radius);
+  padding: 5px 8px; width: 100%; outline: none;
+}
+input[type="text"]:focus, input[type="password"]:focus { border-color: var(--teal); }
+input[type="file"] { padding: 3px 6px; font-size: 11px; cursor: pointer; }
+
+/* ── CART POPUP ───────────────────────────────── */
+.cart-wrap { position: relative; }
+.cart-badge {
+  position: absolute; top: -5px; right: -5px;
+  background: var(--red); color: #fff; font-size: 9px; font-weight: 700;
+  width: 15px; height: 15px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  pointer-events: none;
+}
+.cart-popup {
+  display: none; position: fixed; top: 72px; right: 10px; z-index: 500;
+  width: 260px; background: #0d1117;
+  border: 1px solid var(--border2); border-radius: 6px;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+}
+.cart-popup.open { display: block; }
+.cart-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  font-size: 11px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--gold2);
+}
+.cart-items { max-height: 200px; overflow-y: auto; padding: 6px; }
+.cart-items::-webkit-scrollbar { width: 3px; }
+.cart-items::-webkit-scrollbar-thumb { background: var(--border2); }
+.cart-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 4px; border-bottom: 1px solid var(--border);
+  cursor: help; transition: background .1s;
+}
+.cart-row:hover { background: rgba(255,255,255,0.03); }
+.cart-row img { width: 28px; height: 28px; image-rendering: pixelated; flex-shrink: 0; }
+.cart-info { flex: 1; min-width: 0; }
+.cart-iname { font-size: 11px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cart-iprice { font-size: 10px; color: var(--gold2); font-family: var(--mono); }
+.cart-del { background: none; border: none; color: var(--red); cursor: pointer; font-size: 14px; padding: 0 2px; flex-shrink: 0; }
+.cart-foot {
+  padding: 8px 12px; border-top: 1px solid var(--border);
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.cart-total { font-size: 11px; color: var(--gold2); font-family: var(--mono); font-weight: 700; }
+
+/* ── MANAGE MODAL ─────────────────────────────── */
+.overlay {
+  display: none; position: fixed; inset: 0; z-index: 1000;
+  background: rgba(0,0,0,0.7); align-items: center; justify-content: center;
+}
+.overlay.open { display: flex; }
+.modal-box {
+  background: #0d1117; border: 1px solid var(--border2);
+  border-radius: 6px; padding: 18px; min-width: 240px; max-width: 300px;
+  box-shadow: 0 16px 48px rgba(0,0,0,0.8);
+}
+.modal-title {
+  font-size: 13px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase;
+  color: var(--gold2); margin-bottom: 12px; padding-bottom: 8px;
+  border-bottom: 1px solid var(--border);
+}
+.modal-title span { color: var(--blue); }
+.modal-actions { display: flex; flex-direction: column; gap: 6px; }
+.modal-result  { font-size: 11px; text-align: center; font-weight: 700; min-height: 16px; margin-top: 8px; }
+.modal-close   { margin-top: 10px; width: 100%; }
+
+/* ── TOOLTIP ──────────────────────────────────── */
+#item-tooltip {
+  display: none; position: fixed; z-index: 9000;
+  background: rgba(10,12,16,0.96); border: 1px solid var(--border2);
+  border-radius: 4px; padding: 8px 10px; pointer-events: none;
+  font-size: 11px; min-width: 120px;
+  box-shadow: 0 4px 20px rgba(0,0,0,0.8);
+}
+#item-tooltip .tt-name { font-weight: 700; color: #fff; text-align: center; margin-bottom: 4px; }
+#item-tooltip .tt-lvl  { color: var(--gold2); text-align: center; margin-bottom: 4px; font-family: var(--mono); }
+#item-tooltip .tt-line { color: var(--exc); margin: 1px 0; }
+#item-tooltip .tt-harm { color: var(--harm); margin: 1px 0; }
+#item-tooltip .tt-sk   { color: var(--teal); margin: 1px 0; }
+#item-tooltip .tt-anc  { color: var(--ancient); margin: 1px 0; }
+
+/* ── SCROLLBAR GLOBAL ─────────────────────────── */
+::-webkit-scrollbar { width: 4px; height: 4px; }
+::-webkit-scrollbar-track { background: var(--panel); }
+::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 2px; }
+
+/* ── DIVIDER ──────────────────────────────────── */
+.divider {
+  border: none; border-top: 1px solid var(--border); margin: 6px 0;
+}
+
+/* ── QR LIGHTBOX ──────────────────────────────── */
+#qr-lightbox {
+  display: none; position: fixed; inset: 0; z-index: 5000;
+  background: rgba(0,0,0,0.9); align-items: center; justify-content: center; cursor: zoom-out;
+}
+#qr-lightbox.open { display: flex; }
+#qr-lightbox img { max-width: 320px; max-height: 320px; border-radius: 8px; }
+
+.pw-group { margin-bottom: 8px; }
+.pw-group .field-lbl { margin-bottom: 3px; }
+</style>
+</head>
+<body>
+
+<!-- ── TOPBAR ──────────────────────────────────── -->
+<div class="topbar">
+  <div class="topbar-left">
+    <div class="topbar-logo">⚔ MU</div>
+    <div class="topbar-server" id="server-badge">—</div>
+  </div>
+  <div class="topbar-right">
+    <span class="user-label">Welcome,</span>
+    <span class="user-name" id="user-name">—</span>
+    <div class="cart-wrap">
+      <button class="btn-sm btn-gold" onclick="toggleCart()">🛒 Cart</button>
+      <div class="cart-badge" id="cart-badge">0</div>
+    </div>
+    <button class="btn-sm btn-gray" onclick="openConvert()">⇌ Convert</button>
+    <button class="btn-sm btn-gray" onclick="openPassword()">🔑 Pwd</button>
+    <button class="btn-sm btn-red"  onclick="doLogout()">Logout</button>
+  </div>
+</div>
+
+<!-- ── STATS STRIP ─────────────────────────────── -->
+<div class="stats-strip">
+  <div class="stat-item">
+    <span class="stat-label">WebCredits</span>
+    <span class="stat-val" id="stat-wc">0</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-label">WCoinC</span>
+    <span class="stat-val teal" id="stat-wcc">0</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-label">WCoinP</span>
+    <span class="stat-val teal" id="stat-wcp">0</span>
+  </div>
+  <div class="stat-item">
+    <span class="stat-label">Goblin</span>
+    <span class="stat-val teal" id="stat-gp">0</span>
+  </div>
+</div>
+
+<!-- ── TABS ───────────────────────────────────── -->
+<div class="tabs-bar">
+  <button class="tab active" onclick="switchTab('chars')">My Characters</button>
+  <button class="tab" id="tab-btn-shop" onclick="switchTab('shop')">Webshop</button>
+  <button class="tab tab-donate" id="tab-btn-donate" onclick="switchTab('donate')" style="display:none;">Donate</button>
+</div>
+
+<!-- ── BODY ───────────────────────────────────── -->
+<div class="body-area">
+
+  <!-- CHARACTERS -->
+  <div class="panel active" id="panel-chars">
+    <table class="char-table">
+      <thead>
+        <tr>
+          <th>Name</th><th>Class</th><th>Lvl</th><th>MLvl</th><th>Resets</th>
+          <th>STR</th><th>AGI</th><th>VIT</th><th>ENE</th><th>CMD</th><th>PK</th><th>—</th>
+        </tr>
+      </thead>
+      <tbody id="char-list">
+        <tr><td colspan="12" style="padding:20px; text-align:center; color:var(--muted);">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- WEBSHOP -->
+  <div class="panel" id="panel-shop">
+    <div class="shop-left">
+      <div class="field-row">
+        <label class="field-lbl">Category</label>
+        <select id="sh-cat" onchange="shopFilterCat()"></select>
+      </div>
+      <div class="field-row">
+        <label class="field-lbl">Item</label>
+        <select id="sh-item" onchange="shopApplyFilters(); shopCalcPrice()"></select>
+      </div>
+      <div class="field-row" id="grp-level" style="display:none;">
+        <label class="field-lbl">Level</label>
+        <select id="sh-level" onchange="shopCalcPrice()">
+          <option value="0">+0</option><option value="1">+1</option><option value="2">+2</option>
+          <option value="3">+3</option><option value="4">+4</option><option value="5">+5</option>
+          <option value="6">+6</option><option value="7">+7</option><option value="8">+8</option>
+          <option value="9">+9</option><option value="10">+10</option><option value="11">+11</option>
+          <option value="12">+12</option><option value="13">+13</option><option value="14">+14</option>
+          <option value="15">+15</option>
+        </select>
+      </div>
+      <div class="luckskill-row" id="grp-luckskill" style="display:none;">
+        <label class="ls-label"><input type="checkbox" id="sh-luck"  onchange="shopCalcPrice()"> Luck</label>
+        <label class="ls-label"><input type="checkbox" id="sh-skill" onchange="shopCalcPrice()"> Skill</label>
+      </div>
+      <div id="grp-exc" style="display:none; margin-bottom:8px;">
+        <label class="field-lbl">Excellent Options <span id="exc-lbl-type"></span></label>
+        <div class="exc-grid">
+          <label class="exc-label"><input type="checkbox" class="sh-exc" value="1"  onchange="shopCalcPrice()"> <span class="exc-txt">Exc 1</span></label>
+          <label class="exc-label"><input type="checkbox" class="sh-exc" value="2"  onchange="shopCalcPrice()"> <span class="exc-txt">Exc 2</span></label>
+          <label class="exc-label"><input type="checkbox" class="sh-exc" value="4"  onchange="shopCalcPrice()"> <span class="exc-txt">Exc 3</span></label>
+          <label class="exc-label"><input type="checkbox" class="sh-exc" value="8"  onchange="shopCalcPrice()"> <span class="exc-txt">Exc 4</span></label>
+          <label class="exc-label"><input type="checkbox" class="sh-exc" value="16" onchange="shopCalcPrice()"> <span class="exc-txt">Exc 5</span></label>
+          <label class="exc-label"><input type="checkbox" class="sh-exc" value="32" onchange="shopCalcPrice()"> <span class="exc-txt">Exc 6</span></label>
+        </div>
+      </div>
+      <!-- Advanced -->
+      <div class="adv-opts" id="grp-adv">
+        <div id="wrap-380" style="display:none;">
+          <label class="ls-label"><input type="checkbox" id="sh-380" onchange="shopCalcPrice()"> 380 PvP Option</label>
+        </div>
+        <div id="wrap-ancient" style="display:none;">
+          <span class="adv-lbl" style="color:var(--ancient);">Ancient Set</span>
+          <select id="sh-ancient" onchange="shopCalcPrice()"><option value="0">None</option></select>
+        </div>
+        <div id="wrap-harmony" style="display:none;">
+          <span class="adv-lbl" style="color:var(--harm);">Harmony</span>
+          <select id="sh-harmony" onchange="shopCalcPrice()"><option value="0">None</option></select>
+        </div>
+        <div id="wrap-socket" style="display:none;">
+          <span class="adv-lbl" style="color:var(--purple);">Empty Sockets</span>
+          <select id="sh-sockets" onchange="shopCalcPrice()"><option value="0">0</option></select>
+        </div>
+      </div>
+    </div>
+
+    <div class="shop-right">
+      <div class="item-preview">
+        <img id="sh-preview" src="uploads/items/noimage.gif" onerror="this.src='uploads/items/noimage.gif'">
+      </div>
+      <div class="price-display">
+        <span class="price-label">Total Price</span>
+        <span class="price-val"><span id="sh-price">0</span> Credits</span>
+      </div>
+      <div class="shop-btns">
+        <button class="btn-full buy"  onclick="shopBuy()">Buy Item</button>
+        <button class="btn-full cart" onclick="shopAddCart()">+ Add to Cart</button>
+      </div>
+      <div class="shop-msg" id="sh-msg"></div>
+    </div>
+  </div>
+
+  <!-- DONATE -->
+  <div class="panel" id="panel-donate">
+    <div class="donate-col" id="col-paypal" style="display:none;">
+      <h4 class="h4-paypal">PayPal</h4>
+      <div class="field-row">
+        <label class="field-lbl">Amount (<span id="pp-currency">USD</span>)</label>
+        <input type="number" id="pp-amount" min="1" value="5" oninput="ppCalc()">
+      </div>
+      <div class="receive-box">
+        <div class="lbl">You receive</div>
+        <div class="val" id="pp-receive">0</div>
+        <div class="lbl">Credits</div>
+      </div>
+      <div id="paypal-button-container"></div>
+      <div class="shop-msg" id="pp-msg"></div>
+    </div>
+
+    <div class="donate-col" id="col-qr" style="display:none;">
+      <h4 class="h4-qr">QR Ph / Maya</h4>
+      <div class="qr-img-wrap" onclick="openQRLightbox(this.querySelector('img').src)">
+        <img id="qr-img" src="" alt="QR">
+      </div>
+      <div class="field-row">
+        <label class="field-lbl">Credits wanted</label>
+        <input type="number" id="qr-credits" placeholder="e.g. 1000" oninput="qrCalc()">
+      </div>
+      <div class="rate-badge">Cost: <strong id="qr-php">0.00</strong> PHP</div>
+      <div class="field-row">
+        <label class="field-lbl">Reference No.</label>
+        <input type="text" id="qr-ref" placeholder="13-digit ref">
+      </div>
+      <div class="field-row">
+        <label class="field-lbl">Screenshot proof</label>
+        <input type="file" id="qr-file" accept="image/*">
+      </div>
+      <button class="btn-full buy" onclick="qrSubmit()">Submit Proof</button>
+      <div class="shop-msg" id="qr-msg"></div>
+    </div>
+
+    <div class="donate-col" id="col-paymongo" style="display:none;">
+      <h4 class="h4-paymongo">PayMongo</h4>
+      <div class="field-row">
+        <label class="field-lbl">Credits to buy</label>
+        <input type="number" id="pm-credits" placeholder="e.g. 5000" oninput="pmCalc()">
+      </div>
+      <div class="rate-badge">Rate: <strong id="pm-rate">100</strong> Credits / 1 PHP</div>
+      <div class="receive-box">
+        <div class="lbl">Total cost</div>
+        <div class="val" id="pm-php">0.00</div>
+        <div class="lbl">PHP</div>
+      </div>
+      <button class="btn-full" style="background:var(--purple); color:#fff;" onclick="pmPay()">Secure Checkout →</button>
+      <div class="shop-msg" id="pm-msg"></div>
+    </div>
+  </div>
+
+</div><!-- body-area -->
+
+<!-- ── CART POPUP ──────────────────────────────── -->
+<div class="cart-popup" id="cart-popup">
+  <div class="cart-head">
+    <span>Shopping Cart</span>
+    <button class="btn-sm btn-gray" onclick="toggleCart()" style="font-size:10px; padding:2px 8px;">✕</button>
+  </div>
+  <div class="cart-items" id="cart-items"></div>
+  <div class="cart-foot">
+    <span class="cart-total" id="cart-total">0 Credits</span>
+    <button class="btn-sm btn-teal" onclick="cartCheckout()">Checkout</button>
+  </div>
+</div>
+
+<!-- ── MANAGE MODAL ────────────────────────────── -->
+<div class="overlay" id="overlay-manage">
+  <div class="modal-box">
+    <div class="modal-title">Manage <span id="mgr-name">—</span></div>
+    <div class="modal-actions" id="mgr-btns"></div>
+    <div class="modal-result" id="mgr-result"></div>
+    <button class="btn-full btn-gray modal-close" onclick="closeOverlay('overlay-manage')">Close</button>
+  </div>
+</div>
+
+<!-- ── CONVERT MODAL ───────────────────────────── -->
+<div class="overlay" id="overlay-convert">
+  <div class="modal-box">
+    <div class="modal-title">Convert WebCredits</div>
+    <div class="field-row">
+      <label class="field-lbl">Convert to</label>
+      <select id="cv-type" onchange="cvCalc()">
+        <option value="wcoinc">WCoinC</option>
+        <option value="wcoinp">WCoinP</option>
+        <option value="goblin">GoblinPoints</option>
+      </select>
+    </div>
+    <div class="field-row">
+      <label class="field-lbl">WebCredits to spend</label>
+      <input type="number" id="cv-amount" min="1" value="0" oninput="cvCalc()">
+    </div>
+    <div class="receive-box" style="margin-bottom:8px;">
+      <div class="lbl">You receive</div>
+      <div class="val" id="cv-receive">0</div>
+      <div class="lbl" id="cv-type-lbl">WCoinC</div>
+    </div>
+    <div class="shop-msg" id="cv-msg"></div>
+    <div style="display:flex; gap:6px; margin-top:8px;">
+      <button class="btn-full buy" onclick="cvSubmit()" style="flex:1;">Confirm</button>
+      <button class="btn-full btn-gray" onclick="closeOverlay('overlay-convert')" style="flex:1;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── PASSWORD MODAL ─────────────────────────── -->
+<div class="overlay" id="overlay-pwd">
+  <div class="modal-box">
+    <div class="modal-title">Change Password</div>
+    <div class="pw-group"><label class="field-lbl">Old Password</label><input type="password" id="pw-old"></div>
+    <div class="pw-group"><label class="field-lbl">New Password</label><input type="password" id="pw-new"></div>
+    <div class="pw-group"><label class="field-lbl">Confirm New</label><input type="password" id="pw-conf"></div>
+    <div class="shop-msg" id="pw-msg"></div>
+    <div style="display:flex; gap:6px; margin-top:8px;">
+      <button class="btn-full buy" onclick="pwSubmit()" style="flex:1;">Change</button>
+      <button class="btn-full btn-gray" onclick="closeOverlay('overlay-pwd')" style="flex:1;">Cancel</button>
+    </div>
+  </div>
+</div>
+
+<!-- ── ITEM TOOLTIP ────────────────────────────── -->
+<div id="item-tooltip"></div>
+
+<!-- ── QR LIGHTBOX ────────────────────────────── -->
+<div id="qr-lightbox" onclick="closeQRLightbox()">
+  <img id="qr-lb-img" src="" alt="QR">
+</div>
+
+<!-- ══════════════════════════════════════════════
+     JAVASCRIPT
+══════════════════════════════════════════════ -->
+<script>
+'use strict';
+
+// ── STATE ──────────────────────────────────────
+let _features = {}, _rates = {wcoinc:1,wcoinp:1,goblin:1};
+let _pricing  = {price_level:10,price_exc:50,price_luck_skill:25,price_380:100,price_harmony:100,price_socket:50,price_ancient:100};
+let _paypal   = {enabled:false,rate:100,currency:'USD'};
+let _paymongo = {enabled:false,rate:100,public_key:''};
+let _qrRatio  = 100;
+let _selChar  = '';
+let _items    = [];
+let _cart     = [];
+let _ppLoaded = false;
+let _pmPoll;
+
+const catNames = {
+  0:'Swords',1:'Axes',2:'Maces & Scepters',3:'Spears',4:'Bows & Crossbows',
+  5:'Staffs',6:'Shields',7:'Helms',8:'Armors',9:'Pants',10:'Gloves',11:'Boots',
+  12:'Wings & Orbs',13:'Pets & Rings',14:'Pendants & Jewels',15:'Scrolls'
+};
+
+// Exc labels by item type group
+const EXC = {
+  weapon: ['HP Hunt','Mana Hunt','Dmg 2%','Speed','EDR','Dmg Lvl/20'],
+  set:    ['Zen','DSR','DD','Ref','Increase Life','Increase Mana'],
+  wings:  ['Ignore','Return','—','—','HP Recov','Mana Recon'],
+};
+const excValues = [1,2,4,8,16,32];
+
+function getExcGroup(t){ return (t<=5)?'weapon':(t<=11)?'set':(t===12)?'wings':'weapon'; }
+
+function getClassName(c){
+  const m={0:'Dark Wizard',1:'Soul Master',2:'Grand Master',3:'Grand Master',16:'Dark Knight',17:'Blade Knight',18:'Blade Master',19:'Blade Master',32:'Fairy Elf',33:'Muse Elf',34:'High Elf',35:'High Elf',48:'Magic Gladiator',49:'Duel Master',50:'Duel Master',64:'Dark Lord',65:'Lord Emperor',66:'Lord Emperor',80:'Summoner',81:'Bloody Summoner',82:'Dimension Master',83:'Dimension Master',96:'Rage Fighter',97:'Fist Master',98:'Fist Master'};
+  return m[c]||'Unknown';
+}
+
+// ── INIT ───────────────────────────────────────
+document.addEventListener('DOMContentLoaded', ()=>{
+  loadUserData();
+  loadShopItems();
+  loadWallpaper();
+});
+
+// ── TABS ───────────────────────────────────────
+function switchTab(id){
+  document.querySelectorAll('.tab').forEach(b=>b.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
+  document.getElementById('panel-'+id).classList.add('active');
+  const btn = document.querySelector(`.tab[onclick="switchTab('${id}')"]`);
+  if(btn) btn.classList.add('active');
+}
+
+// ── LOAD USER ──────────────────────────────────
+async function loadUserData(){
+  try{
+    const r = await fetch('Configuration/get-user-data.php?t='+Date.now());
+    const d = await r.json();
+    if(!d.success){ if(d.error==='auth_required'||d.error==='timeout') window.location.href='index.html'; return; }
+
+    _features = d.features||{};
+    _rates    = d.rates||{wcoinc:1,wcoinp:1,goblin:1};
+    _paypal   = d.paypal||{enabled:false,rate:100,currency:'USD'};
+    _paymongo = d.paymongo||{enabled:false,rate:100,public_key:''};
+    const qr  = d.qr_ph||{enabled:false,ratio:100};
+    _qrRatio  = qr.ratio||100;
+
+    // Header
+    document.getElementById('user-name').textContent  = d.username;
+    document.getElementById('server-badge').textContent= d.server_label;
+
+    // Stats
+    const fc = d.characters[0]||{};
+    document.getElementById('stat-wc').textContent  = fc.WebCredits||0;
+    document.getElementById('stat-wcc').textContent = fc.WCoinC||0;
+    document.getElementById('stat-wcp').textContent = fc.WCoinP||0;
+    document.getElementById('stat-gp').textContent  = fc.GoblinPoint||0;
+
+    // Webshop tab
+    if(!_features.enable_webshop){
+      document.getElementById('tab-btn-shop').style.display='none';
+    }
+
+    // Donate tab
+    const qrOk  = qr.enabled;
+    const ppOk  = _paypal.enabled && _paypal.client_id;
+    const pmOk  = _paymongo.enabled && _paymongo.public_key;
+    const dBtn  = document.getElementById('tab-btn-donate');
+    if(qrOk||ppOk||pmOk){ dBtn.style.display=''; }
+
+    if(ppOk){
+      document.getElementById('col-paypal').style.display='';
+      document.getElementById('pp-currency').textContent = _paypal.currency;
+      ppCalc();
+      if(!_ppLoaded){
+        const s=document.createElement('script');
+        s.src=`https://www.paypal.com/sdk/js?client-id=${_paypal.client_id}&currency=${_paypal.currency}`;
+        s.onload=renderPayPal; document.body.appendChild(s); _ppLoaded=true;
+      }
+    }
+    if(qrOk){
+      document.getElementById('col-qr').style.display='';
+      const img=document.getElementById('qr-img');
+      if(qr.image_url) img.src=qr.image_url+'?t='+Date.now();
+    }
+    if(pmOk){
+      document.getElementById('col-paymongo').style.display='';
+      document.getElementById('pm-rate').textContent=_paymongo.rate;
+    }
+
+    // Characters
+    const tbody = document.getElementById('char-list');
+    tbody.innerHTML='';
+    if(!d.characters.length){
+      tbody.innerHTML='<tr><td colspan="12" style="text-align:center;padding:20px;color:var(--muted);">No characters found.</td></tr>';
+      return;
+    }
+    d.characters.forEach(c=>{
+      const isDL=[64,65,66].includes(+c.Class);
+      const cmd  = isDL?`<span style="color:var(--purple)">${c.Leadership}</span>`:'<span style="color:var(--muted)">—</span>';
+      const pk   = c.PkCount>0?`<span class="pk-red">${c.PkCount}</span>`:c.PkCount;
+      tbody.innerHTML+=`<tr>
+        <td class="char-name">${c.Name}</td>
+        <td class="char-class">${c.ClassName}</td>
+        <td class="char-lvl">${c.cLevel}</td>
+        <td class="char-lvl" style="color:var(--teal)">${c.MasterLevel}</td>
+        <td class="char-rst">${c.ResetCount||0}</td>
+        <td>${c.Strength}</td><td>${c.Dexterity}</td><td>${c.Vitality}</td><td>${c.Energy}</td>
+        <td>${cmd}</td><td>${pk}</td>
+        <td class="manage"><button class="btn-sm btn-blue" onclick="openManage('${c.Name}')">Manage</button></td>
+      </tr>`;
+    });
+  }catch(e){ console.error(e); }
+}
+
+// ── WEBSHOP ────────────────────────────────────
+async function loadShopItems(){
+  try{
+    const r=await fetch('Configuration/get-webshop-items.php?t='+Date.now());
+    const d=await r.json();
+    if(!d.success) return;
+    _pricing = d.pricing||_pricing;
+    _items   = d.items;
+    const cat=document.getElementById('sh-cat');
+    cat.innerHTML='<option value="">-- Category --</option>';
+    [...new Set(_items.map(i=>i.ItemType))].sort((a,b)=>a-b).forEach(t=>{
+      cat.innerHTML+=`<option value="${t}">${catNames[t]||'Category '+t}</option>`;
+    });
+  }catch(e){}
+}
+
+function shopFilterCat(){
+  const t=document.getElementById('sh-cat').value;
+  const sel=document.getElementById('sh-item');
+  sel.innerHTML='<option value="">-- Item --</option>';
+  if(!t){ shopApplyFilters(); shopCalcPrice(); return; }
+  _items.filter(i=>i.ItemType==t).forEach(i=>{
+    const o=document.createElement('option');
+    o.value=`${i.ItemType}-${i.ItemIndex}`;
+    o.dataset.base      = i.BasePrice??100;
+    o.dataset.allowExc  = i.AllowExc??1;
+    o.dataset.allowLevel= i.AllowLevel??1;
+    o.dataset.allow380  = i.Allow380??0;
+    o.dataset.allowHarmony=i.AllowHarmony??0;
+    o.dataset.allowSocket =i.AllowSocket??0;
+    o.dataset.allowAncient=i.AllowAncient??0;
+    o.dataset.ancName1  = i.AncName1||'';
+    o.dataset.ancName2  = i.AncName2||'';
+    o.dataset.maxExc    = i.MaxExc??6;
+    o.dataset.maxSocket = i.MaxSocket??5;
+    o.dataset.allowLuck = i.AllowLuck??1;
+    o.dataset.allowSkill= i.AllowSkill??1;
+    o.textContent=`[${i.ItemIndex}] ${(i.ItemName||'').replace(/"/g,'').trim()}`;
+    sel.appendChild(o);
+  });
+  shopApplyFilters(); shopCalcPrice();
+}
+
+function shopApplyFilters(){
+  const sel=document.getElementById('sh-item');
+  const hide=id=>{ const el=document.getElementById(id); if(el) el.style.display='none'; };
+  const show=id=>{ const el=document.getElementById(id); if(el) el.style.display=''; };
+
+  if(!sel.value){
+    ['grp-level','grp-luckskill','grp-exc','grp-adv'].forEach(hide);
+    document.getElementById('sh-preview').src='uploads/items/noimage.gif';
+    return;
+  }
+  const o=sel.options[sel.selectedIndex];
+  const [t]=o.value.split('-').map(Number);
+
+  // Level
+  o.dataset.allowLevel==1 ? show('grp-level') : hide('grp-level');
+  if(o.dataset.allowLevel!=1) document.getElementById('sh-level').value='0';
+
+  // Luck / Skill
+  const lk=o.dataset.allowLuck==1, sk=o.dataset.allowSkill==1;
+  document.getElementById('sh-luck').closest('.ls-label').parentElement.style.display=lk?'':'none';
+  document.getElementById('sh-skill').closest('.ls-label').parentElement.style.display=sk?'':'none';
+  document.getElementById('grp-luckskill').style.display=(lk||sk)?'grid':'none';
+  if(!lk) document.getElementById('sh-luck').checked=false;
+  if(!sk) document.getElementById('sh-skill').checked=false;
+
+  // Exc
+  if(o.dataset.allowExc==1){
+    show('grp-exc');
+    updateExcLabels(t);
+  } else {
+    hide('grp-exc');
+    document.querySelectorAll('.sh-exc').forEach(c=>c.checked=false);
+  }
+
+  // Advanced panel
+  const adv=['wrap-380','wrap-ancient','wrap-harmony','wrap-socket'];
+  const show380  = o.dataset.allow380==1;
+  const showAnc  = o.dataset.allowAncient=='1';
+  const showHarm = o.dataset.allowHarmony==1;
+  const showSock = o.dataset.allowSocket==1 && parseInt(o.dataset.maxSocket)>0;
+  const anyAdv   = show380||showAnc||showHarm||showSock;
+
+  document.getElementById('grp-adv').classList.toggle('show', anyAdv);
+  document.getElementById('wrap-380').style.display    = show380 ?'':'none';
+  document.getElementById('wrap-ancient').style.display= showAnc ?'':'none';
+  document.getElementById('wrap-harmony').style.display= showHarm?'':'none';
+  document.getElementById('wrap-socket').style.display = showSock?'':'none';
+
+  if(!show380) document.getElementById('sh-380').checked=false;
+
+  // Ancient options
+  if(showAnc){
+    const as=document.getElementById('sh-ancient');
+    as.innerHTML='<option value="0">None</option>';
+    const n1=o.dataset.ancName1, n2=o.dataset.ancName2;
+    if(n1&&n1!='null'&&n1!='undefined'&&n1!='0'&&n1){
+      as.innerHTML+=`<option value="1">${n1} (+5 Stamina)</option>`;
+      as.innerHTML+=`<option value="2">${n1} (+10 Stamina)</option>`;
+    }
+    if(n2&&n2!='null'&&n2!='undefined'&&n2!='0'&&n2){
+      as.innerHTML+=`<option value="3">${n2} (+5 Stamina)</option>`;
+      as.innerHTML+=`<option value="4">${n2} (+10 Stamina)</option>`;
+    }
+  }
+
+  // Harmony options
+  if(showHarm) populateHarmony(t);
+  else document.getElementById('sh-harmony').value='0';
+
+  // Socket options
+  if(showSock){
+    const max=parseInt(o.dataset.maxSocket)||0;
+    const ss=document.getElementById('sh-sockets');
+    ss.innerHTML='<option value="0">0</option>';
+    for(let i=1;i<=max;i++) ss.innerHTML+=`<option value="${i}">${i}</option>`;
+  }
+
+  // Preview image
+  const [type,idx]=o.value.split('-');
+  const img=document.getElementById('sh-preview');
+  img.src=`uploads/items/${type}/${idx}.gif`;
+  img.onerror=()=>{ img.src='uploads/items/noimage.gif'; img.onerror=null; };
+}
+
+function updateExcLabels(t){
+  const grp=getExcGroup(t);
+  const labels=EXC[grp];
+  document.querySelectorAll('.sh-exc').forEach((cb,i)=>{
+    const span=cb.parentElement.querySelector('.exc-txt');
+    if(span&&labels[i]) span.textContent=labels[i];
+    cb.value=excValues[i];
+  });
+}
+
+function populateHarmony(t){
+  const s=document.getElementById('sh-harmony');
+  s.innerHTML='<option value="0">None</option>';
+  if(t>=0&&t<=4)  s.innerHTML+='<option value="1">Min Dmg</option><option value="2">Max Dmg</option><option value="5">Atk Dmg</option><option value="6">Crit Dmg</option><option value="7">Skill Dmg</option><option value="8">ATK Rate PVP</option><option value="9">SD Decrease</option><option value="10">SD Ignore</option>';
+  else if(t===5)  s.innerHTML+='<option value="1">Magic Power</option><option value="4">Skill Dmg</option><option value="5">Crit Dmg</option><option value="6">SD Decrease</option><option value="7">SD Ignore</option>';
+  else if(t>=6&&t<=11) s.innerHTML+='<option value="1">Defense</option><option value="3">Max HP</option><option value="4">HP Recov</option><option value="5">Mana Recov</option><option value="6">DEF Rate PVP</option><option value="7">Dmg Decrement</option><option value="8">SD Ratio</option>';
+}
+
+function shopCalcPrice(){
+  const sel=document.getElementById('sh-item');
+  if(!sel.value){ document.getElementById('sh-price').textContent='0'; return; }
+  const o=sel.options[sel.selectedIndex];
+  let p=parseInt(o.dataset.base)||0;
+  const lv=parseInt(document.getElementById('sh-level').value)||0;
+  const lk=document.getElementById('sh-luck').checked;
+  const sk=document.getElementById('sh-skill').checked;
+  const p380=document.getElementById('sh-380').checked;
+  const harm=parseInt(document.getElementById('sh-harmony').value)>0;
+  const sock=parseInt(document.getElementById('sh-sockets').value)||0;
+  const anc =parseInt(document.getElementById('sh-ancient')?.value||0);
+  const excc=document.querySelectorAll('.sh-exc:checked').length;
+
+  p += lv * (_pricing.price_level||10);
+  if(lk) p += (_pricing.price_luck_skill||25);
+  if(sk) p += (_pricing.price_luck_skill||25);
+  p += excc * (_pricing.price_exc||50);
+  if(p380) p += (_pricing.price_380||100);
+  if(harm) p += (_pricing.price_harmony||100);
+  p += sock * (_pricing.price_socket||50);
+  if(anc>0) p += (_pricing.price_ancient||100);
+
+  // Max exc enforcement
+  const maxE=parseInt(o.dataset.maxExc)||0;
+  if(o.dataset.allowExc==1&&maxE>0){
+    document.querySelectorAll('.sh-exc').forEach(cb=>{
+      cb.disabled = (!cb.checked && excc>=maxE);
+      cb.closest('.exc-label').classList.toggle('disabled', cb.disabled);
+    });
+  }
+
+  document.getElementById('sh-price').textContent=p;
+  return p;
+}
+
+function buildCartItem(snapshot){
+  const sel=document.getElementById('sh-item');
+  if(!sel.value) return null;
+  const o=sel.options[sel.selectedIndex];
+  const [t,i]=o.value.split('-').map(Number);
+  const harmSel=document.getElementById('sh-harmony');
+  const excNames=[];
+  document.querySelectorAll('.sh-exc:checked').forEach(cb=>{
+    excNames.push(cb.parentElement.querySelector('.exc-txt').textContent);
+  });
+  return {
+    uniqueId: Date.now(),
+    name: o.textContent.replace(/^\[\d+\]\s*/,''),
+    type: t, index: i,
+    level: parseInt(document.getElementById('sh-level').value)||0,
+    luck:  document.getElementById('sh-luck').checked?1:0,
+    skill: document.getElementById('sh-skill').checked?1:0,
+    excValue: [...document.querySelectorAll('.sh-exc:checked')].reduce((a,cb)=>a+parseInt(cb.value),0),
+    excNames,
+    opt380:    document.getElementById('sh-380').checked?1:0,
+    harmonyVal:parseInt(harmSel.value)||0,
+    harmonyName:harmSel.options[harmSel.selectedIndex].text,
+    sockets:   parseInt(document.getElementById('sh-sockets').value)||0,
+    ancient:   parseInt(document.getElementById('sh-ancient')?.value||0),
+    price:     parseInt(document.getElementById('sh-price').textContent)||0,
+  };
+}
+
+async function shopBuy(){
+  const item=buildCartItem();
+  if(!item){ msgShop('Please select an item.','red'); return; }
+  if(!confirm(`Buy for ${item.price} WebCredits?\n\nMake sure you are OFFLINE and Warehouse has space.`)) return;
+  msgShop('Processing...','gold');
+  const fd=new FormData();
+  fd.append('itemType',item.type); fd.append('itemIndex',item.index);
+  fd.append('level',item.level); fd.append('luck',item.luck); fd.append('skill',item.skill);
+  fd.append('excOpt',item.excValue); fd.append('opt380',item.opt380);
+  fd.append('harmony',item.harmonyVal); fd.append('sockets',item.sockets); fd.append('ancient',item.ancient);
+  try{
+    const r=await fetch('Configuration/webshop-buy.php',{method:'POST',body:fd});
+    const d=await r.json();
+    if(d.success){ msgShop('✅ '+d.message,'teal'); loadUserData(); }
+    else msgShop('❌ '+d.message,'red');
+  }catch(e){ msgShop('❌ System error','red'); }
+}
+
+function shopAddCart(){
+  const item=buildCartItem();
+  if(!item){ msgShop('Please select an item.','red'); return; }
+  _cart.push(item);
+  renderCart();
+  msgShop('✅ Added to cart!','teal');
+  setTimeout(()=>msgShop('',''),2500);
+}
+
+function msgShop(txt,col){
+  const el=document.getElementById('sh-msg');
+  const colors={teal:'var(--teal)',red:'var(--red)',gold:'var(--gold2)'};
+  el.style.color=colors[col]||'var(--text)';
+  el.textContent=txt;
+}
+
+// ── CART ───────────────────────────────────────
+function toggleCart(){
+  document.getElementById('cart-popup').classList.toggle('open');
+}
+function renderCart(){
+  const list=document.getElementById('cart-items');
+  const badge=document.getElementById('cart-badge');
+  const total=document.getElementById('cart-total');
+  badge.textContent=_cart.length;
+  list.innerHTML='';
+  let sum=0;
+  _cart.forEach(item=>{
+    sum+=item.price;
+    list.innerHTML+=`<div class="cart-row"
+        onmouseover="showTip(event,${item.uniqueId})"
+        onmousemove="moveTip(event)"
+        onmouseout="hideTip()">
+      <img src="uploads/items/${item.type}/${item.index}.gif" onerror="this.src='uploads/items/noimage.gif'">
+      <div class="cart-info">
+        <div class="cart-iname">${item.name} +${item.level}</div>
+        <div class="cart-iprice">${item.price} Cr</div>
+      </div>
+      <button class="cart-del" onclick="removeCart(${item.uniqueId})">×</button>
+    </div>`;
+  });
+  total.textContent=sum+' Credits';
+}
+function removeCart(id){
+  _cart=_cart.filter(i=>i.uniqueId!==id);
+  renderCart(); hideTip();
+}
+async function cartCheckout(){
+  if(!_cart.length){ alert('Cart is empty!'); return; }
+  const r=await fetch('Configuration/webshop-checkout.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({items:_cart})});
+  const d=await r.json();
+  alert(d.message);
+  if(d.success){ _cart=[]; renderCart(); toggleCart(); loadUserData(); }
+}
+
+// ── TOOLTIP ────────────────────────────────────
+function showTip(e,id){
+  const item=_cart.find(i=>i.uniqueId===id); if(!item) return;
+  const tip=document.getElementById('item-tooltip');
+  let h=`<div class="tt-name" style="color:${item.ancient>0?'var(--ancient)':'#fff'}">${item.name}</div>`;
+  h+=`<div class="tt-lvl">+${item.level}</div>`;
+  if(item.skill) h+=`<div class="tt-sk">(Skill)</div>`;
+  if(item.luck)  h+=`<div class="tt-sk">(Luck)</div>`;
+  item.excNames.forEach(n=>{ h+=`<div class="tt-line">${n}</div>`; });
+  if(item.harmonyVal>0) h+=`<div class="tt-harm">${item.harmonyName}</div>`;
+  tip.innerHTML=h; tip.style.display='block'; moveTip(e);
+}
+function moveTip(e){
+  const t=document.getElementById('item-tooltip');
+  t.style.left=(e.clientX+12)+'px'; t.style.top=(e.clientY+12)+'px';
+}
+function hideTip(){ document.getElementById('item-tooltip').style.display='none'; }
+
+// ── MANAGE ─────────────────────────────────────
+function openManage(name){
+  _selChar=name;
+  document.getElementById('mgr-name').textContent=name;
+  document.getElementById('mgr-result').textContent='';
+  const c=document.getElementById('mgr-btns');
+  c.innerHTML='';
+  const add=(label,action,color)=>{
+    const b=document.createElement('button');
+    b.className='btn-full'; b.style.background=color; b.style.color='#fff';
+    b.textContent=label; b.onclick=()=>doAction(action);
+    c.appendChild(b);
+  };
+  if(_features.enable_reset)        add('Reset Character','reset_char','var(--blue)');
+  if(_features.enable_reset_stats)  add('Reset Stats','reset_stats','#17a2b8');
+  if(_features.enable_clear_pk)     add('Clear PK','clear_pk','var(--red)');
+  if(_features.enable_reset_master) add('Reset Master ML','reset_master','var(--purple)');
+  if(_features.enable_unstuck)      add('Unstuck','unstuck_char','var(--gold)');
+  if(!c.children.length) c.innerHTML='<p style="color:var(--muted);text-align:center;">No actions enabled.</p>';
+  document.getElementById('overlay-manage').classList.add('open');
+}
+async function doAction(action){
+  const rd=document.getElementById('mgr-result');
+  rd.style.color='var(--gold2)'; rd.textContent='Processing...';
+  const fd=new FormData(); fd.append('action',action); fd.append('character',_selChar);
+  try{
+    const r=await fetch('Configuration/user-action.php',{method:'POST',body:fd});
+    const d=await r.json();
+    rd.style.color=d.success?'var(--teal)':'var(--red)';
+    rd.textContent=(d.success?'✅ ':'❌ ')+d.message;
+    if(d.success) setTimeout(loadUserData,1500);
+  }catch(e){ rd.style.color='var(--red)'; rd.textContent='❌ Error'; }
+}
+function closeOverlay(id){ document.getElementById(id).classList.remove('open'); }
+
+// ── CONVERT ────────────────────────────────────
+function openConvert(){
+  document.getElementById('cv-msg').textContent='';
+  document.getElementById('cv-amount').value='';
+  cvCalc();
+  document.getElementById('overlay-convert').classList.add('open');
+}
+function cvCalc(){
+  const t=document.getElementById('cv-type').value;
+  const a=parseInt(document.getElementById('cv-amount').value)||0;
+  const r=_rates[t]||1;
+  const labels={wcoinc:'WCoinC',wcoinp:'WCoinP',goblin:'GoblinPoints'};
+  document.getElementById('cv-receive').textContent=a*r;
+  document.getElementById('cv-type-lbl').textContent=labels[t];
+}
+async function cvSubmit(){
+  const t=document.getElementById('cv-type').value;
+  const a=document.getElementById('cv-amount').value;
+  const msg=document.getElementById('cv-msg');
+  if(a<=0){ msg.style.color='var(--red)'; msg.textContent='Enter a valid amount.'; return; }
+  if(!confirm(`Convert ${a} WebCredits?\n\nMust be OFFLINE in-game.`)) return;
+  msg.style.color='var(--gold2)'; msg.textContent='Processing...';
+  const fd=new FormData(); fd.append('type',t); fd.append('amount',a);
+  try{
+    const r=await fetch('Configuration/convert-credits.php',{method:'POST',body:fd});
+    const d=await r.json();
+    msg.style.color=d.success?'var(--teal)':'var(--red)';
+    msg.textContent=(d.success?'✅ ':'❌ ')+d.message;
+    if(d.success) setTimeout(()=>{ closeOverlay('overlay-convert'); loadUserData(); },1800);
+  }catch(e){ msg.style.color='var(--red)'; msg.textContent='❌ Error'; }
+}
+
+// ── PASSWORD ───────────────────────────────────
+function openPassword(){
+  ['pw-old','pw-new','pw-conf'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('pw-msg').textContent='';
+  document.getElementById('overlay-pwd').classList.add('open');
+}
+async function pwSubmit(){
+  const o=document.getElementById('pw-old').value;
+  const n=document.getElementById('pw-new').value;
+  const c=document.getElementById('pw-conf').value;
+  const msg=document.getElementById('pw-msg');
+  if(!o||!n||!c){ msg.style.color='var(--red)'; msg.textContent='All fields required.'; return; }
+  if(n!==c){ msg.style.color='var(--red)'; msg.textContent='New passwords do not match.'; return; }
+  msg.style.color='var(--gold2)'; msg.textContent='Updating...';
+  const fd=new FormData(); fd.append('old_password',o); fd.append('new_password',n); fd.append('confirm_password',c);
+  try{
+    const r=await fetch('Configuration/change-password.php',{method:'POST',body:fd});
+    const d=await r.json();
+    msg.style.color=d.success?'var(--teal)':'var(--red)';
+    msg.textContent=(d.success?'✅ ':'❌ ')+d.message;
+    if(d.success) setTimeout(()=>closeOverlay('overlay-pwd'),1500);
+  }catch(e){ msg.style.color='var(--red)'; msg.textContent='❌ Error'; }
+}
+
+// ── DONATE: PAYPAL ─────────────────────────────
+function ppCalc(){
+  const a=parseFloat(document.getElementById('pp-amount').value)||0;
+  document.getElementById('pp-receive').textContent=Math.floor(a*(_paypal.rate||100));
+}
+function renderPayPal(){
+  if(typeof paypal==='undefined') return;
+  paypal.Buttons({
+    createOrder:(d,a)=>{
+      const amt=parseFloat(document.getElementById('pp-amount').value);
+      if(amt<=0) return;
+      return a.order.create({purchase_units:[{amount:{value:amt.toFixed(2)}}]});
+    },
+    onApprove:(d,a)=>{
+      const msg=document.getElementById('pp-msg');
+      msg.style.color='var(--gold2)'; msg.textContent='Capturing...';
+      return fetch('Configuration/paypal-capture.php',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({orderID:d.orderID})})
+        .then(r=>r.json()).then(res=>{
+          msg.style.color=res.success?'var(--teal)':'var(--red)';
+          msg.textContent=(res.success?'✅ ':'❌ ')+res.message;
+          if(res.success) loadUserData();
+        });
+    },
+    onCancel:()=>{ document.getElementById('pp-msg').textContent='Cancelled.'; }
+  }).render('#paypal-button-container');
+}
+
+// ── DONATE: QR ─────────────────────────────────
+function qrCalc(){
+  const c=parseInt(document.getElementById('qr-credits').value)||0;
+  document.getElementById('qr-php').textContent=(c/_qrRatio).toFixed(2);
+}
+async function qrSubmit(){
+  const c=document.getElementById('qr-credits').value;
+  const r=document.getElementById('qr-ref').value;
+  const f=document.getElementById('qr-file');
+  const msg=document.getElementById('qr-msg');
+  if(!c||!r||!f.files.length){ msg.style.color='var(--red)'; msg.textContent='❌ Fill all fields.'; return; }
+  msg.style.color='var(--gold2)'; msg.textContent='Uploading...';
+  const fd=new FormData(); fd.append('credits',c); fd.append('reference',r); fd.append('proof',f.files[0]);
+  try{
+    const res=await fetch('Configuration/submit-qr-donation.php',{method:'POST',body:fd});
+    const d=await res.json();
+    msg.style.color=d.success?'var(--teal)':'var(--red)';
+    msg.textContent=d.success?'✅ Proof sent! Awaiting Admin approval.':'❌ '+d.message;
+    if(d.success){ document.getElementById('qr-credits').value=''; document.getElementById('qr-ref').value=''; f.value=''; qrCalc(); }
+  }catch(e){ msg.style.color='var(--red)'; msg.textContent='❌ Error'; }
+}
+
+// ── DONATE: PAYMONGO ───────────────────────────
+function pmCalc(){
+  const c=parseInt(document.getElementById('pm-credits').value)||0;
+  const rate=_paymongo.rate||100;
+  document.getElementById('pm-php').textContent=(c/rate).toFixed(2);
+}
+async function pmPay(){
+  const c=parseInt(document.getElementById('pm-credits').value)||0;
+  const rate=_paymongo.rate||100;
+  const msg=document.getElementById('pm-msg');
+  if(c<=0) return;
+  if((c/rate)<100){ msg.style.color='var(--red)'; msg.textContent=`❌ Min 100 PHP (${rate*100} Credits).`; return; }
+  msg.style.color='var(--gold2)'; msg.textContent='⏳ Generating link...';
+  let win=window.open('','_blank');
+  if(win) win.document.write("<h2 style='font-family:sans-serif;text-align:center;margin-top:80px;'>Connecting to PayMongo...</h2>");
+  const fd=new FormData();
+  fd.append('credits',c);
+  fd.append('account',document.getElementById('user-name').textContent.trim());
+  try{
+    const r=await fetch('Configuration/paymongo-create-link.php',{method:'POST',body:fd});
+    const d=await r.json();
+    if(d.success){
+      if(win) win.location.href=d.checkout_url;
+      msg.style.color='var(--gold2)'; msg.textContent='⏳ Awaiting payment...';
+      if(_pmPoll) clearInterval(_pmPoll);
+      _pmPoll=setInterval(async()=>{
+        const sr=await fetch('Configuration/check-payment-status.php?t='+Date.now());
+        const sd=await sr.json();
+        if(sd.status==='success'){ clearInterval(_pmPoll); msg.style.color='var(--teal)'; msg.textContent='✅ '+sd.message; alert('✅ '+sd.message); loadUserData(); }
+      },3000);
+    } else { if(win) win.close(); msg.style.color='var(--red)'; msg.textContent='❌ '+d.message; }
+  }catch(e){ if(win) win.close(); msg.style.color='var(--red)'; msg.textContent='❌ Error'; }
+}
+
+// ── WALLPAPER ──────────────────────────────────
+async function loadWallpaper(){
+  try{
+    const r=await fetch('Configuration/settings.json?v='+Date.now());
+    const s=await r.json();
+    if(s.wallpaper_url) document.body.style.backgroundImage=`url('${s.wallpaper_url}')`;
+    document.body.style.backgroundSize='cover';
+    document.body.style.backgroundPosition='center';
+  }catch(e){}
+}
+
+// ── QR LIGHTBOX ────────────────────────────────
+function openQRLightbox(src){ document.getElementById('qr-lb-img').src=src; document.getElementById('qr-lightbox').classList.add('open'); }
+function closeQRLightbox(){ document.getElementById('qr-lightbox').classList.remove('open'); }
+document.addEventListener('keydown',e=>{ if(e.key==='Escape'){ closeQRLightbox(); document.querySelectorAll('.overlay.open').forEach(o=>o.classList.remove('open')); }});
+
+// ── LOGOUT ─────────────────────────────────────
+async function doLogout(){
+  try{ await fetch('Configuration/logout.php?t='+Date.now(),{method:'POST'}); }catch(e){}
+  localStorage.clear(); sessionStorage.clear();
+  window.location.replace('index.html?logout=1&t='+Date.now());
+}
+
+// Close overlays on backdrop click
+document.querySelectorAll('.overlay').forEach(ov=>{
+  ov.addEventListener('click',e=>{ if(e.target===ov) ov.classList.remove('open'); });
+});
+</script>
+</body>
+</html>

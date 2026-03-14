@@ -30,9 +30,10 @@ if (!$conn) { echo json_encode(['success' => false, 'message' => 'Database conne
 $priceCfg = $settings['webshop'][$server_key] ?? $settings['webshop'] ?? [];
 
 // ============================================================
-// ROUTE: Additional Jewel of Life (jolLevel posted)
 // ============================================================
-if (isset($_POST['jolLevel'])) {
+// ROUTE: Additional Jewel of Life ONLY (no item selected)
+// ============================================================
+if (isset($_POST['jolLevel']) && !isset($_POST['itemType'])) {
 
     $jolLevel = (int)$_POST['jolLevel'];
     if ($jolLevel < 4 || $jolLevel > 28) {
@@ -41,7 +42,7 @@ if (isset($_POST['jolLevel'])) {
 
     $jolBase     = (int)($priceCfg['price_jol_base']      ?? 100);
     $jolPerLevel = (int)($priceCfg['price_jol_per_level'] ?? 50);
-    $totalPrice  = $jolBase + (($jolLevel - 4) * $jolPerLevel);
+    $totalPrice  = $jolBase + ((($jolLevel - 4) / 4) * $jolPerLevel);
 
     // Check offline
     $statRow = sqlsrv_fetch_array(sqlsrv_query($conn, "SELECT ConnectStat FROM MEMB_STAT WHERE memb___id = ?", [$username]), SQLSRV_FETCH_ASSOC);
@@ -64,7 +65,6 @@ if (isset($_POST['jolLevel'])) {
     $currentWarehouseHex = $whRow['ItemsHex'];
     $totalSlots = (int)(strlen($currentWarehouseHex) / 32);
 
-    // Build grid (mark occupied slots)
     $grid = array_fill(0, $totalSlots, false);
     for ($i = 0; $i < $totalSlots; $i++) {
         $itemHex = substr($currentWarehouseHex, $i * 32, 32);
@@ -72,7 +72,6 @@ if (isset($_POST['jolLevel'])) {
         $grid[$i] = true;
     }
 
-    // Find free 1x1 slot
     $foundSlot = -1;
     for ($s = 0; $s < $totalSlots; $s++) {
         if (!$grid[$s]) { $foundSlot = $s; break; }
@@ -81,11 +80,10 @@ if (isset($_POST['jolLevel'])) {
         echo json_encode(['success' => false, 'message' => 'Not enough space in Warehouse!']); exit;
     }
 
-    // Build JoL hex: ItemType=14 (0xE0 in byte9), ItemIndex=16 (0x10)
-    $byte0  = sprintf("%02X", 16);                         // ItemIndex = 16
-    $byte1  = sprintf("%02X", ($jolLevel * 8) & 0xFF);    // level encoded
-    $byte9  = sprintf("%02X", 14 * 16);                   // ItemType*16 = 0xE0
-    $hex    = strtoupper($byte0 . $byte1 . "FF00000000" . "00" . "00" . $byte9 . "00" . "FFFFFFFFFF");
+    $byte0 = sprintf("%02X", 16);
+    $byte1 = sprintf("%02X", ($jolLevel * 8) & 0xFF);
+    $byte9 = sprintf("%02X", 14 * 16);
+    $hex   = strtoupper($byte0 . $byte1 . "FF00000000" . "00" . "00" . $byte9 . "00" . "FFFFFFFFFF");
 
     sqlsrv_begin_transaction($conn);
     $newWarehouseHex = substr_replace($currentWarehouseHex, $hex, $foundSlot * 32, 32);
@@ -141,15 +139,22 @@ $totalPrice = $itemData['BasePrice']
     + ($sockets  * (int)($priceCfg['price_socket']     ?? 50))
     + (($ancient > 0 ? 1 : 0) * (int)($priceCfg['price_ancient'] ?? 100));
 
+// 4b. Compute JoL price early so credit check covers both
+$jolLevel    = (int)($_POST['jolLevel'] ?? 0);
+$jolBase     = (int)($priceCfg['price_jol_base']      ?? 100);
+$jolPerLevel = (int)($priceCfg['price_jol_per_level'] ?? 50);
+$jolPrice    = ($jolLevel >= 4) ? (int)($jolBase + (($jolLevel - 4) / 4) * $jolPerLevel) : 0;
+$grandTotal  = $totalPrice + $jolPrice;
+
 // 5. Check offline
 $statStmt = sqlsrv_query($conn, "SELECT ConnectStat FROM MEMB_STAT WHERE memb___id = ?", [$username]);
 $statRow  = sqlsrv_fetch_array($statStmt, SQLSRV_FETCH_ASSOC);
 if ($statRow && $statRow['ConnectStat'] == 1) { echo json_encode(['success' => false, 'message' => 'You must be OFFLINE to buy items.']); exit; }
 
-// 6. Check credits
+// 6. Check credits against FULL total (item + JoL)
 $credStmt = sqlsrv_query($conn, "SELECT credits FROM WebCredits WHERE memb___id = ?", [$username]);
 $credRow  = sqlsrv_fetch_array($credStmt, SQLSRV_FETCH_ASSOC);
-if (!$credRow || $credRow['credits'] < $totalPrice) { echo json_encode(['success' => false, 'message' => 'Not enough WebCredits.']); exit; }
+if (!$credRow || $credRow['credits'] < $grandTotal) { echo json_encode(['success' => false, 'message' => 'Not enough WebCredits.']); exit; }
 
 // 7. Warehouse Tetris
 $whQuery = sqlsrv_query($conn, "SELECT CONVERT(VARCHAR(MAX), Items, 2) AS ItemsHex FROM Warehouse WHERE AccountID = ?", [$username]);
@@ -201,39 +206,51 @@ for ($y = 0; $y <= $totalRows - $newItemH; $y++) {
 }
 if ($foundSlot === -1) { echo json_encode(['success' => false, 'message' => "Not enough space in Warehouse!"]); exit; }
 
-// 8. Build hex
-$hex    = sprintf("%02X", $itemIndex % 256);
-$byte1  = ($level * 8) + ($skill ? 128 : 0) + ($luck ? 4 : 0);
-$hex   .= sprintf("%02X", $byte1);
-$hex   .= "FF";
-$hex   .= "00000000";
-$hex   .= sprintf("%02X", $excOpt);
+// 8. Build hex — JoL option is encoded DIRECTLY into this item's bytes
+// Additional option map: JoL level → addOpt index (1-6)
+$addOptMap = [4=>1, 8=>2, 12=>3, 16=>4, 20=>5, 24=>6, 28=>7];
+$addOpt    = ($jolLevel >= 4) ? ($addOptMap[$jolLevel] ?? 0) : 0;
+
+$hex   = sprintf("%02X", $itemIndex % 256);                          // Byte 0: item index
+$byte1 = ($level * 8)                                               // bits 6-3: level
+       + ($skill  ? 128 : 0)                                        // bit 7: skill
+       + ($luck   ?   4 : 0)                                        // bit 2: luck
+       + ($addOpt & 0x03);                                          // bits 1-0: low 2 bits of addOpt
+$hex  .= sprintf("%02X", $byte1);                                    // Byte 1
+$hex  .= "FF";                                                       // Byte 2: durability
+$hex  .= "00000000";                                                 // Bytes 3-6: serial
+
+// Byte 7: exc options + high bit of addOpt (bit 6 set when addOpt >= 4)
+$excByte = $excOpt | ($addOpt >= 4 ? 0x40 : 0x00);
+$hex .= sprintf("%02X", $excByte);                                   // Byte 7
 
 $ancientByte = 0x00;
 if ($ancient == 1) $ancientByte = 0x05;
 if ($ancient == 2) $ancientByte = 0x09;
 if ($ancient == 3) $ancientByte = 0x06;
 if ($ancient == 4) $ancientByte = 0x0A;
-$hex .= sprintf("%02X", $ancientByte);
+$hex .= sprintf("%02X", $ancientByte);                               // Byte 8: ancient
 
 $byte9 = ($itemType * 16) + ($itemIndex > 255 ? 128 : 0) + ($opt380 ? 8 : 0);
-$hex  .= sprintf("%02X", $byte9);
+$hex  .= sprintf("%02X", $byte9);                                    // Byte 9: item type
 
 $byte10 = ($harmony > 0) ? (($harmony << 4) | 0x0D) : 0x00;
-$hex   .= sprintf("%02X", $byte10);
+$hex   .= sprintf("%02X", $byte10);                                  // Byte 10: harmony
 
-for ($i = 1; $i <= 5; $i++) { $hex .= ($i <= $sockets) ? "FE" : "FF"; }
+for ($i = 1; $i <= 5; $i++) { $hex .= ($i <= $sockets) ? "FE" : "FF"; } // Bytes 11-15: sockets
 $hex = strtoupper($hex);
 
-// 9. Save
+// 9. Inject item (with JoL already baked in — no separate JoL item needed)
 $newWarehouseHex = substr_replace($currentWarehouseHex, $hex, $foundSlot * 32, 32);
 
 sqlsrv_begin_transaction($conn);
 
+// 11. Save warehouse (item + JoL both written in one UPDATE)
 $updateStmt = sqlsrv_query($conn, "UPDATE Warehouse SET Items = CONVERT(VARBINARY(MAX), ?, 2) WHERE AccountID = ?", [$newWarehouseHex, $username]);
 if (!$updateStmt) { sqlsrv_rollback($conn); echo json_encode(['success' => false, 'message' => 'Failed to deliver item to warehouse.']); exit; }
 
-$deductStmt = sqlsrv_query($conn, "UPDATE WebCredits SET credits = credits - ? WHERE memb___id = ?", [$totalPrice, $username]);
+// 12. Deduct credits
+$deductStmt = sqlsrv_query($conn, "UPDATE WebCredits SET credits = credits - ? WHERE memb___id = ?", [$grandTotal, $username]);
 if (!$deductStmt) { sqlsrv_rollback($conn); echo json_encode(['success' => false, 'message' => 'Failed to deduct credits.']); exit; }
 
 // 10. Log
@@ -250,11 +267,15 @@ if ($harmony > 0) $optList[] = "Harmony";
 if ($sockets > 0) $optList[] = "Sockets: $sockets";
 foreach ($excBitNames as $bit => $name) { if ($excOpt & $bit) $optList[] = $name; }
 
+if ($jolLevel >= 4) $optList[] = "Add.JoL +{$jolLevel}";
+
 $fullOptions = implode(', ', $optList);
 sqlsrv_query($conn, "INSERT INTO Webshop_Logs (AccountID, ItemName, Price, ServerKey, ItemOptions) VALUES (?, ?, ?, ?, ?)",
-    [$username, $itemData['ItemName'], $totalPrice, $server_key, $fullOptions]);
+    [$username, $itemData['ItemName'], $grandTotal, $server_key, $fullOptions]);
 
 sqlsrv_commit($conn);
-echo json_encode(['success' => true, 'message' => "Purchase successful! Item placed in Warehouse."]);
+$successMsg = "Purchase successful! Item delivered to Warehouse.";
+if ($jolLevel >= 4) $successMsg .= " Additional JoL +{$jolLevel} also delivered!";
+echo json_encode(['success' => true, 'message' => $successMsg]);
 sqlsrv_close($conn);
 ?>
