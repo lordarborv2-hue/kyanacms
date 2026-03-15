@@ -3,6 +3,9 @@ document.addEventListener('DOMContentLoaded', function() {
     loadWebshopItems();
     loadWallpaper();
     loadSidebars();
+	
+	const shopItem = document.getElementById('shop-item');
+    if (shopItem) shopItem.addEventListener('change', updateItemPreview);
 });
 
 // --- GLOBAL VARIABLES ---
@@ -1094,12 +1097,6 @@ function onItemSelect(data) {
         nameLabel.textContent = data.ItemName;
     }
 }
-
-// Ensure this runs whenever the item dropdown changes
-document.getElementById('shop-item').addEventListener('change', updateItemPreview);
-
-
-
 
 // --- LOGOUT LOGIC ---
 async function logout() { 
